@@ -21,8 +21,9 @@ and the environment of [Beyond_All_Reason_Environment](https://github.com/Maxala
 - `configurations/`: the experiments (`environment_name` is the class path of `RayMultiAgentEnvironment`):
   - `one_versus_one_ppo.py`: 1 agent against 1 passive Pawn;
   - `five_versus_five_passive_ppo.py`: 5 agents against 5 passive Pawns;
+  - `five_versus_two_hold_and_fire_ppo.py`: 5 agents against 2 Pawns that shoot back;
   - `five_versus_five_hold_and_fire_ppo.py`: 5 agents against 5 Pawns that shoot back;
-  - `pawn_curriculum.py`: the three, each until 90 % victories, every stage starting from the weights of the previous.
+  - `pawn_curriculum.py`: the four, each until 90 % victories, every stage starting from the weights of the previous.
 - `experiments/`: the results (checkpoints, logs), not versioned.
 
 ## Installation

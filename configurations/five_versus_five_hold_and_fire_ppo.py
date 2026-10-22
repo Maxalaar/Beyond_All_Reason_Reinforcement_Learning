@@ -1,12 +1,12 @@
-"""PPO training configuration — 5v5 Pawn combat against HoldAndFire Pawns (curriculum step 3).
+"""PPO training configuration — 5v5 Pawn combat against HoldAndFire Pawns (curriculum step 4).
 
 Scenario (beyond_all_reason_environment.scenarios.five_versus_five_arena): the 1v1 arena (flat 1024×1024 elmos,
 2 game-minutes) with 5 armpw (Pawn) on each side, each team in a small band at the middle of its edge.
 Chosen here, for this experiment: the 5 agents (one shared policy) against HoldAndFire Pawns (do not move, shoot what
 comes in range), one weapon slot per unit, every command allowed, and a terminal reward (+1 victory, -1 defeat, no
 intermediate shaping). Entity counts follow the scenario (4 allies, 5 enemies).
-Stops at 90 % victories. In pawn_curriculum.py it starts from five_versus_five_passive_ppo.py (90 % victories against
-Passive Pawns).
+Stops at 90 % victories. In pawn_curriculum.py it starts from five_versus_two_hold_and_fire_ppo.py (90 % victories
+against 2 HoldAndFire Pawns).
 
 Expected episode length: at most ~113 decisions (2 game-minutes at 32 frames/decision).
 No separate evaluation: its env runner keeps one more engine (~4.5 GB), which left the 31 GB machine at 88 % RAM in

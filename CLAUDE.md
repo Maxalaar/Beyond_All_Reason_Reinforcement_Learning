@@ -26,8 +26,9 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
 
 ## State of the experiments (2026-10-22)
 - pawn_curriculum: 1v1 and 5v5 against Passive reached 90 % victories; 5v5 against HoldAndFire got stuck in avoiding
-  the fight (draws are worth 0, defeats -1), its entropy diverged. Next idea agreed in principle: an intermediate
-  stage, 5 agents against 2 HoldAndFire Pawns. Checkpoints made before 2026-10-22 do not load anymore (class paths
+  the fight (draws are worth 0, defeats -1), its entropy diverged. Added on 2026-10-22: an intermediate stage,
+  five_versus_two_hold_and_fire_ppo (5 agents against 2 HoldAndFire Pawns, scenario five_versus_two_arena); the
+  curriculum's stages changed, so it needs a new run (--new). Checkpoints made before 2026-10-22 do not load anymore (class paths
   changed with the move between repositories).
 - RAM (31 GB, no swap): 3 env runners and the other applications leave little margin; each engine takes ~4.3 GB
   and grows ~0.3 GB/hour. To investigate in the environment (what the headless engine loads).

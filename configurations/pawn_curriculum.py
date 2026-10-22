@@ -3,7 +3,10 @@ its weights.
 
     0. one_versus_one_ppo.py                  1 agent against 1 Passive Pawn
     1. five_versus_five_passive_ppo.py        5 agents against 5 Passive Pawns
-    2. five_versus_five_hold_and_fire_ppo.py  5 agents against 5 HoldAndFire Pawns (they shoot back)
+    2. five_versus_two_hold_and_fire_ppo.py   5 agents against 2 HoldAndFire Pawns (they shoot back)
+    3. five_versus_five_hold_and_fire_ppo.py  5 agents against 5 HoldAndFire Pawns
+
+Step 2 was added on 2026-10-22: straight from step 1, step 3 taught the agents to avoid the fight (draws).
 
 Usage (from this repository root; the same command resumes the curriculum where it stopped, --new starts a new run):
     python ../Maxalaar_Reinforcement_Learning/scripts/curriculum_training.py \
@@ -17,6 +20,7 @@ pawn_curriculum = CurriculumConfiguration(
     stages=[
         "configurations/one_versus_one_ppo.py",
         "configurations/five_versus_five_passive_ppo.py",
+        "configurations/five_versus_two_hold_and_fire_ppo.py",
         "configurations/five_versus_five_hold_and_fire_ppo.py",
     ],
 )
