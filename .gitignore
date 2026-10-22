@@ -1,0 +1,17 @@
+# Training results (checkpoints, logs): experiments/<experiment or curriculum>/...
+/experiments/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Editors
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.swp
+.DS_Store
