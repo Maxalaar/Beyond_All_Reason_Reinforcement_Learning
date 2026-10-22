@@ -57,3 +57,12 @@ def test_the_rates_cover_the_last_episodes_across_iterations():
     assert rates(callback, [two_agent_episode(1, 1)] * 10) == (30 / 40, 0.0)
     # Only the last WINDOW episodes count.
     assert rates(callback, [two_agent_episode(1, 1)] * WINDOW) == (0.0, 0.0)
+
+
+def test_the_victory_rate_is_also_kept_by_number_of_opponents():
+    # two_agent_episode starts against 2 enemies (enemies_alive at frame 0).
+    callback = VictoryCallback()
+    logger = MetricsLogger()
+    for episode in [two_agent_episode(1, 0), two_agent_episode(1, 0), two_agent_episode(0, 1), two_agent_episode(1, 1)]:
+        callback.on_episode_end(episode=episode, metrics_logger=logger, env_index=0)
+    assert logger.peek("victory_rate_against_2") == 2 / 4

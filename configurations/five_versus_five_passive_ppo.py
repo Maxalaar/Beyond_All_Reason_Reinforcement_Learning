@@ -6,7 +6,7 @@ Chosen here, for this experiment: the 5 agents (one shared policy) against Passi
 one weapon slot per unit, every command allowed, and a terminal reward (+1 victory, -1 defeat, no intermediate
 shaping). Entity counts follow the scenario (4 allies, 5 enemies).
 Stops at 90 % victories. In pawn_curriculum.py it starts from the 1v1 policy (one_versus_one_ppo.py), and
-five_versus_two_hold_and_fire_ppo.py (opponents that shoot back) starts from it.
+five_versus_one_to_five_attack_nearest_ppo.py (opponents that come to fight) starts from it.
 
 Expected episode length: at most ~113 decisions (2 game-minutes at 32 frames/decision).
 No separate evaluation: its env runner keeps one more engine (~4.5 GB), which left the 31 GB machine at 88 % RAM in

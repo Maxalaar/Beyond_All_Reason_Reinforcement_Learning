@@ -17,13 +17,18 @@ and the environment of [Beyond_All_Reason_Environment](https://github.com/Maxala
     unit; a `render_mode` opens the game window);
   - `architecture/`: `BeyondAllReasonModule`, attention over the entities (each unit and its weapons, then each
     category, then the whole situation), and its centralized critic, which sees every alliance;
-  - `victory_callback.py`: `VictoryCallback`, victory and defeat rates over the last 100 episodes of each env runner.
+  - `victory_callback.py`: `VictoryCallback`, victory and defeat rates over the last 100 episodes of each env runner,
+    and the victory rate against each number of opponents.
 - `configurations/`: the experiments (`environment_name` is the class path of `RayMultiAgentEnvironment`):
   - `one_versus_one_ppo.py`: 1 agent against 1 passive Pawn;
   - `five_versus_five_passive_ppo.py`: 5 agents against 5 passive Pawns;
-  - `five_versus_two_hold_and_fire_ppo.py`: 5 agents against 2 Pawns that shoot back;
-  - `five_versus_five_hold_and_fire_ppo.py`: 5 agents against 5 Pawns that shoot back;
-  - `pawn_curriculum.py`: the four, each until 90 % victories, every stage starting from the weights of the previous.
+  - `five_versus_one_to_five_attack_nearest_ppo.py`: 5 agents against 1 to 5 Pawns (drawn each episode) that attack
+    the nearest enemy;
+  - `five_versus_five_attack_nearest_ppo.py`: 5 agents against 5 Pawns that attack the nearest enemy;
+  - `pawn_curriculum.py`: the four above, numbered from 1, each until 90 % victories, every stage starting from the
+    weights of the previous;
+  - `five_versus_five_hold_and_fire_ppo.py`: 5 agents against 5 still Pawns that shoot back (not in the curriculum:
+    the agents learned to avoid the fight).
 - `experiments/`: the results (checkpoints, logs), not versioned.
 
 ## Installation

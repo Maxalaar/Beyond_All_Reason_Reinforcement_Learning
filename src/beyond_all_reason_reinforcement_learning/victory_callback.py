@@ -1,4 +1,4 @@
-from collections import deque
+from collections import defaultdict, deque
 
 from ray.rllib.algorithms.callbacks import DefaultCallbacks
 
@@ -14,7 +14,11 @@ class VictoryCallback(DefaultCallbacks):
     information of the episode (beyond_all_reason_environment: allies_alive, enemies_alive) tells who is left; with
     both alive the episode reached its time limit, a draw.
 
-    The window is kept here: RLlib's own window (log_value(window=...)) restarts at every training iteration, so a
+    Also the victory rate against each number of opponents at the start of the episode
+    (env_runners/victory_rate_against_<number>), over the last WINDOW episodes with that number: it shows where the
+    agents stand when that number is drawn for each episode (TeamConfiguration.units given as (minimum, maximum)).
+
+    The windows are kept here: RLlib's own window (log_value(window=...)) restarts at every training iteration, so a
     stopping criterion on it would judge ~40 episodes only.
     """
 
@@ -22,6 +26,8 @@ class VictoryCallback(DefaultCallbacks):
         super().__init__()
         # (victory, defeat) of the last episodes of this environment runner: the callback lives as long as it.
         self._outcomes: deque[tuple[float, float]] = deque(maxlen=WINDOW)
+        # Victories of the last episodes, by number of opponents at the start.
+        self._victories_against: defaultdict[int, deque[float]] = defaultdict(lambda: deque(maxlen=WINDOW))
 
     def on_episode_end(self, *, episode, metrics_logger=None, **kwargs) -> None:
         informations = [
@@ -33,9 +39,16 @@ class VictoryCallback(DefaultCallbacks):
             return
         last = max(informations, key=lambda information: information.get("episode_frame", 0))
         allies_alive, enemies_alive = last.get("allies_alive", 0), last.get("enemies_alive", 0)
-        self._outcomes.append(
-            (float(allies_alive > 0 and enemies_alive == 0), float(allies_alive == 0 and enemies_alive > 0))
-        )
+        victory = float(allies_alive > 0 and enemies_alive == 0)
+        self._outcomes.append((victory, float(allies_alive == 0 and enemies_alive > 0)))
+        # Every agent is there at the reset: the first information of any of them counts the opponents.
+        opponents = next(iter(episode.agent_episodes.values())).get_infos(0).get("enemies_alive")
+        if opponents is not None:
+            victories = self._victories_against[opponents]
+            victories.append(victory)
+            metrics_logger.log_value(
+                f"victory_rate_against_{opponents}", sum(victories) / len(victories), reduce="mean", window=1
+            )
 
         # window=1: the iteration reports the rates after its last episode.
         metrics_logger.log_value(
