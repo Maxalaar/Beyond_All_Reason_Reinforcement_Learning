@@ -24,13 +24,19 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   "beyond_all_reason_reinforcement_learning.ray_multi_agent_environment.RayMultiAgentEnvironment"), registered by the
   library (register_environments.register_environment).
 
-## State of the experiments (2026-10-22)
-- pawn_curriculum (stages numbered from 1): 1v1 and 5v5 against Passive reached 90 % victories (run of 2026-10-19).
-  5v5 against HoldAndFire then got stuck in avoiding the fight (draws are worth 0, defeats -1; entropy diverged);
-  5 against 2 HoldAndFire was too easy (92 % victories without training). Decided with the user: stages 3 and 4
-  against AttackNearest opponents (they come to fight, no draw to hide in): 5 against 1 to 5 drawn each episode
-  (scenario five_versus_one_to_five_arena), then 5 against 5. The curriculum's stages changed: a new run (--new).
-  Checkpoints made before 2026-10-22 do not load anymore (class paths changed); their weights (module_state.pkl) can
-  be loaded into BeyondAllReasonModule by hand.
+## State of the experiments (2026-10-23)
+- pawn_curriculum (stages numbered from 1): 1v1 and 5v5 against Passive reach 90 % victories in ~30 min.
+  5v5 against HoldAndFire got stuck in avoiding the fight (draws 0, defeats -1); 5 against 1 to 5 AttackNearest
+  (version_1, 2026-10-22) plateaued at ~80 % for 900 iterations (100 % against 1-2, 35 % against 5: the Pawn fight
+  leaves little beyond numbers), with the entropy drifting up (4.8 -> 6.7) at coefficient 0.005.
+  Decided with the user (2026-10-23): stage 3 is combined arms (3 Shellshockers, 5 Stouts, 10 Pawns against 15 to 30
+  AttackNearest Pawns, until 80 %, entropy 0.001); the Pawn-only AttackNearest stages left the curriculum.
+  A Shellshocker alone was judged uninteresting by the user (slow shells, hard to use).
+- No unit type one-hot in the observation (user's choice, 2026-10-23): a unit is known by its chassis and weapons,
+  every unit uses the same policy, the observation has the same size in every scenario. Checkpoints made before
+  (42 inputs to the entity encoders, 41 now) do not load anymore.
+- The agents do not aim yet: in display_episodes (explore=False) their attack orders fall where no enemy is within
+  attack_snap_radius (60 elmos), so they wait, and the engine's fire at will engages when enemies come in range.
+  The user chose not to change the targeting for now (bigger snap radius or target relative to the unit discussed).
 - RAM (31 GB, no swap): 3 env runners and the other applications leave little margin; each engine takes ~4.3 GB
   and grows ~0.3 GB/hour. To investigate in the environment (what the headless engine loads).

@@ -25,8 +25,10 @@ and the environment of [Beyond_All_Reason_Environment](https://github.com/Maxala
   - `five_versus_one_to_five_attack_nearest_ppo.py`: 5 agents against 1 to 5 Pawns (drawn each episode) that attack
     the nearest enemy;
   - `five_versus_five_attack_nearest_ppo.py`: 5 agents against 5 Pawns that attack the nearest enemy;
-  - `pawn_curriculum.py`: the four above, numbered from 1, each until 90 % victories, every stage starting from the
-    weights of the previous;
+  - `combined_arms_attack_nearest_ppo.py`: 3 Shellshockers, 5 Stouts and 10 Pawns against 15 to 30 Pawns that attack
+    the nearest enemy;
+  - `pawn_curriculum.py`: 1v1 and 5v5 against passive Pawns, then combined arms, numbered from 1, each until its
+    victory rate (90 %, 90 %, 80 %), every stage starting from the weights of the previous;
   - `five_versus_five_hold_and_fire_ppo.py`: 5 agents against 5 still Pawns that shoot back (not in the curriculum:
     the agents learned to avoid the fight).
 - `experiments/`: the results (checkpoints, logs), not versioned.
@@ -50,7 +52,7 @@ python Beyond_All_Reason_Environment/scripts/download_game_data.py    # engine, 
 From this repository root, with the scripts of Maxalaar_Reinforcement_Learning:
 
 ```bash
-# The curriculum (1v1, then 5v5): the same command resumes it where it stopped
+# The curriculum (1v1, 5v5, combined arms): the same command resumes it where it stopped
 python ../Maxalaar_Reinforcement_Learning/scripts/curriculum_training.py \
     --curriculum_configuration_file configurations/pawn_curriculum.py
 

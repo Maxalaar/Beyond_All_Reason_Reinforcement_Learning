@@ -1,4 +1,4 @@
-"""PPO training configuration — 5v5 Pawn combat against AttackNearest Pawns (curriculum step 4).
+"""PPO training configuration — 5v5 Pawn combat against AttackNearest Pawns.
 
 Scenario (beyond_all_reason_environment.scenarios.five_versus_five_arena): the 1v1 arena (flat 1024×1024 elmos,
 2 game-minutes) with 5 armpw (Pawn) on each side, each team in a small band at the middle of its edge.
@@ -7,8 +7,8 @@ each attacks the nearest enemy), one weapon slot per unit, every command allowed
 -1 defeat, no intermediate shaping). Entity counts follow the scenario (4 allies, 5 enemies).
 
 Stops at 90 % victories: the opponents fight with the same units and numbers, so winning means fighting better
-(focusing fire, keeping out of range...). In pawn_curriculum.py it starts from
-five_versus_one_to_five_attack_nearest_ppo.py.
+(focusing fire, keeping out of range...). Out of pawn_curriculum.py since 2026-10-23: a symmetric fight, where 90 % may
+be out of reach.
 
 Expected episode length: at most ~113 decisions (2 game-minutes at 32 frames/decision).
 No separate evaluation: its env runner keeps one more engine (~4.5 GB), which left the 31 GB machine at 88 % RAM in

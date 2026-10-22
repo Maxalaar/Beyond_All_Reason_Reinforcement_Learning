@@ -1,4 +1,4 @@
-"""PPO training configuration — 5 agents against 1 to 5 AttackNearest Pawns (curriculum step 3).
+"""PPO training configuration — 5 agents against 1 to 5 AttackNearest Pawns.
 
 Scenario (beyond_all_reason_environment.scenarios.five_versus_one_to_five_arena): the 5v5 arena (flat 1024×1024 elmos,
 2 game-minutes) with 5 armpw (Pawn) on the west side and 1 to 5 on the east side, drawn for each episode.
@@ -10,8 +10,8 @@ Why this step: against HoldAndFire Pawns (still, shooting what comes in range), 
 a draw (0) being worth more than a defeat (-1). Opponents that come to fight leave no such way out, and the drawn
 number gives easy games (1 or 2 opponents) as well as hard ones (5) from the start. VictoryCallback also reports the
 victory rate against each number of opponents (env_runners/victory_rate_against_<number>).
-Stops at 90 % victories. In pawn_curriculum.py it starts from five_versus_five_passive_ppo.py, and
-five_versus_five_attack_nearest_ppo.py starts from it.
+Stops at 90 % victories. Out of pawn_curriculum.py since 2026-10-23: from the weights of five_versus_five_passive_ppo.py
+it plateaued at ~80 % (100 % against 1 or 2 opponents, 35 % against 5), the 81 % of its first iteration.
 
 Expected episode length: at most ~113 decisions (2 game-minutes at 32 frames/decision).
 No separate evaluation: its env runner keeps one more engine (~4.5 GB), which left the 31 GB machine at 88 % RAM in
