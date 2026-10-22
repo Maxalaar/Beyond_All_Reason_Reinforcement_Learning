@@ -5,8 +5,10 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
 
 ## Conventions
 - Discuss with the user in French. Names in full, no acronyms in file, folder and identifier names.
-- Conda environment: `Maxalaar_Reinforcement_Learning` (/media/SSD_1To/conda/envs/), where this package, the
-  environment and the library are installed with `pip install -e` (`TORCH_DISABLE_NATIVE_JIT=1` is set there: NixOS).
+- Conda environment `Beyond_All_Reason_Reinforcement_Learning` (/media/SSD_1To/conda/envs/; cloned from
+  Maxalaar_Reinforcement_Learning's on 2026-10-22), where trainings run: this package, the environment and the library
+  installed with `pip install -e`; conda variable `TORCH_DISABLE_NATIVE_JIT=1` (NixOS, see the library's CLAUDE.md).
+  The library's own environment no longer has the Beyond All Reason packages (the user's rule: it knows no game).
 - Scripts run from this repository root (experiments/ is relative to the working directory); trainings use the
   scripts of Maxalaar_Reinforcement_Learning (`python ../Maxalaar_Reinforcement_Learning/scripts/...`).
 - Configuration files define a variable named like the file.

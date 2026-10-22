@@ -1,7 +1,7 @@
 {
-    // Trainings run in the conda environment of Maxalaar_Reinforcement_Learning, where this package, the environment
-    // (Beyond_All_Reason_Environment) and the library are installed with pip install -e.
-    "python.defaultInterpreterPath": "/media/SSD_1To/conda/envs/Maxalaar_Reinforcement_Learning/bin/python",
+    // Conda environment of this project (same name as the folder), where trainings run: this package, the environment
+    // (Beyond_All_Reason_Environment) and the library (Maxalaar_Reinforcement_Learning) are installed with pip install -e.
+    "python.defaultInterpreterPath": "/media/SSD_1To/conda/envs/Beyond_All_Reason_Reinforcement_Learning/bin/python",
     "python.terminal.activateEnvironment": true,
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",
@@ -11,5 +11,8 @@
     "python.testing.pytestEnabled": true,
     "python.testing.pytestArgs": ["tests"],
     "files.watcherExclude": {"**/experiments/**": true},
-    "search.exclude": {"experiments": true}
+    "search.exclude": {
+        "experiments": true
+    },
+    "python.analysis.typeCheckingMode": "off"
 }

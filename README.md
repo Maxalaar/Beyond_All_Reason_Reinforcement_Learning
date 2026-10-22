@@ -27,9 +27,11 @@ and the environment of [Beyond_All_Reason_Environment](https://github.com/Maxala
 
 ## Installation
 
-The three repositories side by side, in one conda environment (Python 3.13):
+The three repositories side by side, in this project's conda environment (Python 3.13):
 
 ```bash
+conda create -n Beyond_All_Reason_Reinforcement_Learning python=3.13
+conda activate Beyond_All_Reason_Reinforcement_Learning
 git clone https://github.com/Maxalaar/Beyond_All_Reason_Environment.git
 git clone https://github.com/Maxalaar/Maxalaar_Reinforcement_Learning.git
 git clone https://github.com/Maxalaar/Beyond_All_Reason_Reinforcement_Learning.git
