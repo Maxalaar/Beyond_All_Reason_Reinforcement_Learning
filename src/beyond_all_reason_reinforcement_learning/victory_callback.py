@@ -20,6 +20,11 @@ class VictoryCallback(DefaultCallbacks):
 
     The windows are kept here: RLlib's own window (log_value(window=...)) restarts at every training iteration, so a
     stopping criterion on it would judge ~40 episodes only.
+
+    Stopping criteria go on env_runners/victory_rate_full_window: the victory rate once WINDOW episodes are seen, 0
+    before. On victory_rate, a lucky start stopped stages after ~15 episodes (5 per environment runner) in
+    2026-10-23's curriculum; Tune's stopping dictionary stops when any of its keys is reached, so it cannot also ask
+    for a number of episodes.
     """
 
     def __init__(self):
@@ -58,3 +63,10 @@ class VictoryCallback(DefaultCallbacks):
             "defeat_rate", sum(d for _, d in self._outcomes) / len(self._outcomes), reduce="mean", window=1
         )
         metrics_logger.log_value("victory_rate_episodes", len(self._outcomes), reduce="mean", window=1)
+        full_window = len(self._outcomes) == WINDOW
+        metrics_logger.log_value(
+            "victory_rate_full_window",
+            sum(v for v, _ in self._outcomes) / WINDOW if full_window else 0.0,
+            reduce="mean",
+            window=1,
+        )

@@ -1,22 +1,24 @@
-"""PPO training configuration — combined arms: 3 Shellshockers, 5 Stouts and 10 Pawns against 15 to 30 AttackNearest
-Pawns (curriculum step 3).
+"""PPO training configuration — combined arms: 3 Shellshockers, 5 Stouts and 10 Pawns against 3 to 6 Stouts and 15 to 30
+AttackNearest Pawns (curriculum step 3).
 
 Scenario (beyond_all_reason_environment.scenarios.combined_arms_arena): the 1v1 arena (flat 1024×1024 elmos,
 2 game-minutes) with 3 Shellshockers (artillery: range 710, slow shells), 5 Stouts (light tanks: 1800 health, range
-350) and 10 Pawns on the west side, 15 to 30 Pawns on the east side, drawn for each episode.
+350) and 10 Pawns on the west side, 3 to 6 Stouts and 15 to 30 Pawns on the east side, drawn for each episode.
 Chosen here, for this experiment: the 18 agents (one shared policy for every unit: a unit is known by its chassis and
-weapons) against AttackNearest Pawns, one weapon slot per unit, every command allowed, and a terminal reward
+weapons) against AttackNearest opponents, one weapon slot per unit, every command allowed, and a terminal reward
 (+1 victory, -1 defeat).
 
 Why: Pawn against Pawn left little to learn beyond numbers (five_versus_one_to_five_attack_nearest_ppo plateaued at
 ~80 %: 100 % against 1 or 2, 35 % against 5). Here a line of Stouts in front, which the opponents attack first, lets
-the Pawns and the Shellshockers fire safely: the formation pays against the larger numbers.
+the Pawns and the Shellshockers fire safely: the formation pays against the larger numbers. Against Pawns only, the
+west Stouts won every game, even for the stage 2 policy (100 % at the first iteration): the opponents have Stouts too.
 VictoryCallback reports the victory rate against each number of opponents (env_runners/victory_rate_against_<number>).
 Stops at 80 % victories: with up to 30 opponents, 90 % may be out of reach.
 In pawn_curriculum.py it starts from five_versus_five_passive_ppo.py.
 
-Expected episode length: at most ~113 decisions (2 game-minutes at 32 frames/decision); ~15 for a scripted
-attack of the nearest enemy, which won its 4 test games (18 to 24 opponents).
+Starting point (40 games each, 2026-10-23): the stage 2 policy (actions sampled) wins 50 % (58 % up to 26 opponents,
+33 % from 32), a script attacking the nearest enemy 70 %; 80 % asks for better than the script.
+Expected episode length: at most ~113 decisions (2 game-minutes at 32 frames/decision); ~50 in practice.
 
 Usage (from this repository root, with this package installed: pip install -e .):
     python ../Maxalaar_Reinforcement_Learning/scripts/reinforcement_learning_training.py \
@@ -129,10 +131,10 @@ configuration.number_gpus_per_learner = 1
 configuration.evaluation_interval = None
 
 # ── Stopping criterion: 80 % victories ────────────────────────────────────────
-# VictoryCallback averages the victories over the last 100 episodes of each env runner. Tune saves a
-# last checkpoint when it stops: the next stage of a curriculum (pawn_curriculum.py) starts from it.
+# VictoryCallback averages the victories over the last 100 episodes of each env runner (0 before 100 episodes).
+# Tune saves a last checkpoint when it stops: the next stage of a curriculum (pawn_curriculum.py) starts from it.
 configuration.callback = VictoryCallback
-configuration.stopping_criterion = {"env_runners/victory_rate": 0.8}
+configuration.stopping_criterion = {"env_runners/victory_rate_full_window": 0.8}
 
 # ── Checkpoints ──────────────────────────────────────────────────────────────
 configuration.checkpoint_frequency = 20

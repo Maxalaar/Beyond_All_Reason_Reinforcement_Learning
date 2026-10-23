@@ -120,10 +120,12 @@ five_versus_five_passive_ppo.reinforcement_learning_configuration.number_gpus_pe
 five_versus_five_passive_ppo.reinforcement_learning_configuration.evaluation_interval = None
 
 # ── Stopping criterion: 90 % victories ────────────────────────────────────────
-# VictoryCallback averages the victories over the last 100 episodes of each env runner. Tune saves a
-# last checkpoint when it stops: the next stage of a curriculum (pawn_curriculum.py) starts from it.
+# VictoryCallback averages the victories over the last 100 episodes of each env runner (0 before 100 episodes).
+# Tune saves a last checkpoint when it stops: the next stage of a curriculum (pawn_curriculum.py) starts from it.
 five_versus_five_passive_ppo.reinforcement_learning_configuration.callback = VictoryCallback
-five_versus_five_passive_ppo.reinforcement_learning_configuration.stopping_criterion = {"env_runners/victory_rate": 0.9}
+five_versus_five_passive_ppo.reinforcement_learning_configuration.stopping_criterion = {
+    "env_runners/victory_rate_full_window": 0.9
+}
 
 # ── Checkpoints ──────────────────────────────────────────────────────────────
 five_versus_five_passive_ppo.reinforcement_learning_configuration.checkpoint_frequency = 20

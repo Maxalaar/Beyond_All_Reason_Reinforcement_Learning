@@ -29,8 +29,12 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   5v5 against HoldAndFire got stuck in avoiding the fight (draws 0, defeats -1); 5 against 1 to 5 AttackNearest
   (version_1, 2026-10-22) plateaued at ~80 % for 900 iterations (100 % against 1-2, 35 % against 5: the Pawn fight
   leaves little beyond numbers), with the entropy drifting up (4.8 -> 6.7) at coefficient 0.005.
-  Decided with the user (2026-10-23): stage 3 is combined arms (3 Shellshockers, 5 Stouts, 10 Pawns against 15 to 30
-  AttackNearest Pawns, until 80 %, entropy 0.001); the Pawn-only AttackNearest stages left the curriculum.
+  Decided with the user (2026-10-23): stage 3 is combined arms (3 Shellshockers, 5 Stouts, 10 Pawns against 3 to 6
+  Stouts and 15 to 30 AttackNearest Pawns, until 80 %, entropy 0.001); the Pawn-only AttackNearest stages left the
+  curriculum. Against Pawns only (version_2), the west Stouts won 100 % at once; with east Stouts the stage 2 policy
+  starts at 50 %, a scripted attack of the nearest enemy at 70 %.
+- Stopping criteria use env_runners/victory_rate_full_window (0 until 100 episodes per env runner): on victory_rate,
+  stages 2 and 3 of version_2 stopped after 15 to 30 episodes.
   A Shellshocker alone was judged uninteresting by the user (slow shells, hard to use).
 - No unit type one-hot in the observation (user's choice, 2026-10-23): a unit is known by its chassis and weapons,
   every unit uses the same policy, the observation has the same size in every scenario. Checkpoints made before

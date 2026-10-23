@@ -25,8 +25,8 @@ and the environment of [Beyond_All_Reason_Environment](https://github.com/Maxala
   - `five_versus_one_to_five_attack_nearest_ppo.py`: 5 agents against 1 to 5 Pawns (drawn each episode) that attack
     the nearest enemy;
   - `five_versus_five_attack_nearest_ppo.py`: 5 agents against 5 Pawns that attack the nearest enemy;
-  - `combined_arms_attack_nearest_ppo.py`: 3 Shellshockers, 5 Stouts and 10 Pawns against 15 to 30 Pawns that attack
-    the nearest enemy;
+  - `combined_arms_attack_nearest_ppo.py`: 3 Shellshockers, 5 Stouts and 10 Pawns against 3 to 6 Stouts and 15 to 30
+    Pawns that attack the nearest enemy;
   - `pawn_curriculum.py`: 1v1 and 5v5 against passive Pawns, then combined arms, numbered from 1, each until its
     victory rate (90 %, 90 %, 80 %), every stage starting from the weights of the previous;
   - `five_versus_five_hold_and_fire_ppo.py`: 5 agents against 5 still Pawns that shoot back (not in the curriculum:
