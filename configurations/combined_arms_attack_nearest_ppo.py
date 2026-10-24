@@ -110,8 +110,8 @@ configuration.clip_policy_parameter = 0.2
 configuration.entropy_coefficient = 0.001
 configuration.value_function_loss_coefficient = 1.0
 configuration.number_epochs = 10
-# 600 env steps = ~10800 agent steps (18 agents), as many as the 5-agent stages (2000 env steps): 4000 kept the 31 GB
-# machine at 89-90 % RAM (2026-10-18).
+# 600 env steps (~730 sampled, complete episodes) = ~5700 agent steps (18 agents, the dead ones stop acting; measured in
+# pawn_curriculum version_3). 4000 env steps of 5 agents kept the 31 GB machine at 89-90 % RAM (2026-10-18).
 configuration.train_batch_size = 600
 configuration.minibatch_size = 512
 configuration.batch_mode = "complete_episodes"
