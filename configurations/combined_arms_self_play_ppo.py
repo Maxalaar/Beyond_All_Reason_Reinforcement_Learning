@@ -116,7 +116,8 @@ configuration.sample_timeout_s = 180
 # ── Resources ─────────────────────────────────────────────────────────────────
 # Each engine process uses ~2.3 CPU cores and ~4.7 GB RAM.
 # 3 runners: ~14 GB RAM, ~7 cores for engines. 4 runners (~19 GB) froze the 31 GB machine (no swap) on 2026-10-18.
-configuration.number_environment_runners = 3
+# 2 runners: with 3, the 36 agents took the machine over 88 % RAM within a minute (2026-10-25), before any iteration.
+configuration.number_environment_runners = 2
 configuration.number_cpus_per_environment_runners = 3
 configuration.number_gpus_per_environment_runners = 0
 configuration.number_learners = 1

@@ -27,7 +27,8 @@ Architecture — three levels of attention (actor):
 
     Action heads:
         command  Linear(d_level3, n_commands) → logits, masked by command_mask → Categorical
-        target   Linear(d_level3, 4)          → (μ_x, μ_z, log_σ_x, log_σ_z) → DiagGaussian
+        target   Linear(d_level3, 4)          → (μ_x, μ_z, log_σ_x, log_σ_z) → Gaussian squashed into the
+                 target space (a point of the map): every draw is a real map point, see _BoundedTarget
 
 Centralized critic (CentralizedCritic, fully separate weights):
     CTDE — uses the full game state (all allyteams visible via Spring.SetGlobalLos).
@@ -70,16 +71,22 @@ Centralized critic configuration keys (all prefixed with critic_):
     critic_terrain_cnn_channels           list                                  ([16, 32, 32])
 """
 
+import math
 from typing import Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 import tree
 from maxalaar_reinforcement_learning.neural_network.create_dense_architecture import create_dense_architecture
 from maxalaar_reinforcement_learning.training.is_env_runner_process import is_env_runner_process
 from ray.rllib.core.columns import Columns
-from ray.rllib.core.distribution.torch.torch_distribution import TorchDeterministic, TorchMultiDistribution
-from ray.rllib.core.models.catalog import Catalog
+from ray.rllib.core.distribution.torch.torch_distribution import (
+    TorchCategorical,
+    TorchDeterministic,
+    TorchMultiDistribution,
+    TorchSquashedGaussian,
+)
 from ray.rllib.core.rl_module.apis import ValueFunctionAPI
 from ray.rllib.core.rl_module.torch import TorchRLModule
 from ray.rllib.models.torch.torch_distributions import TorchDistribution
@@ -127,6 +134,10 @@ _CATEGORY_KEYS: dict[str, tuple[str, str, str, str, str]] = {
 _CATEGORY_ORDER = ("ally_units", "enemy_units", "ally_buildings", "enemy_buildings")
 
 
+# Draws of the target's Gaussian that estimate the entropy of its squashed distribution, for each sample.
+_ENTROPY_DRAWS = 8
+
+
 class _PerSampleDeterministic(TorchDeterministic):
     """A deterministic action has log-probability 0, one value per sample. RLlib's TorchDeterministic keeps the
     action dimensions ((B, 2) for the target), which TorchMultiDistribution.logp cannot add to the command's (B,)."""
@@ -135,15 +146,66 @@ class _PerSampleDeterministic(TorchDeterministic):
         return torch.zeros(self.loc.shape[:1], device=self.loc.device)
 
 
-def _with_per_sample_deterministic_logp(
-    distribution_class: type[TorchMultiDistribution],
-) -> type[TorchMultiDistribution]:
-    """The multi-distribution class with a to_deterministic usable without exploration (evaluation, display)."""
+class _BoundedTarget(TorchSquashedGaussian):
+    """The target point: a Gaussian squashed by tanh into [low, high] (the map), so that every draw is a map point.
 
-    class Distribution(distribution_class):
+    With RLlib's default for a Box space, a Gaussian whose draws the environment clipped to the map, the policy of
+    combined_arms_attack_nearest_ppo drifted to a mean of (-4.4, -4.3) and a standard deviation of ~5 (97 % of the draws
+    off the map, clipped to its corner (0, 0)): once off the map, a wider distribution no longer changed the action
+    played, so nothing held its spread, and the entropy grew with it.
+
+    RLlib's TorchSquashedGaussian has no entropy and no KL, which PPO needs:
+        KL       the Gaussians' (the squashing is a bijection, which keeps the KL);
+        entropy  of the squashed distribution, estimated from _ENTROPY_DRAWS draws: the Gaussian's entropy plus the
+                 mean log-derivative of the squashing. Not the Gaussian's alone: it grows without end with the
+                 spread, while the squashed distribution's falls once its draws pile at the map edges.
+    """
+
+    def entropy(self) -> torch.Tensor:
+        draws = self._dist.rsample((_ENTROPY_DRAWS,))
+        # log of d/dx [(tanh(x) + 1) / 2 * (high - low) + low] = log((high - low) / 2) + log(1 - tanh(x)²), written
+        # log(1 - tanh(x)²) = 2 (log 2 - x - softplus(-2x)) to stay finite for large |x|.
+        log_derivative = math.log((self.high - self.low) / 2) + 2 * (
+            math.log(2) - draws - nn.functional.softplus(-2 * draws)
+        )
+        return self._dist.entropy().sum(-1) + log_derivative.sum(-1).mean(0)
+
+    def kl(self, other: "_BoundedTarget") -> torch.Tensor:
+        return torch.distributions.kl_divergence(self._dist, other._dist).sum(-1)
+
+    def to_deterministic(self) -> TorchDeterministic:
+        # The squashed mean: RLlib's would give the Gaussian's, off the map.
+        return TorchDeterministic(loc=self._squash(self.loc))
+
+
+def action_distribution_class(action_space) -> type[TorchMultiDistribution]:
+    """The distribution of an action {"command": Discrete, "target": Box}: categorical command, bounded target.
+
+    Its to_deterministic gives one log-probability per sample, usable without exploration (evaluation, display).
+    """
+    target_space = action_space["target"]
+    low, high = float(target_space.low.min()), float(target_space.high.max())
+    if not (np.all(target_space.low == low) and np.all(target_space.high == high)):
+        raise ValueError(f"the target needs the same bounds on every dimension: {target_space}")
+
+    class Target(_BoundedTarget):
+        @classmethod
+        def from_logits(cls, logits: torch.Tensor, **kwargs) -> "Target":
+            return super().from_logits(logits, low=low, high=high, **kwargs)
+
+    command_logits = int(TorchCategorical.required_input_dim(action_space["command"]))
+    target_logits = int(Target.required_input_dim(target_space))
+    # The Dict space's order (sorted keys): command, then target.
+    partial_class = TorchMultiDistribution.get_partial_dist_cls(
+        space=action_space,
+        child_distribution_cls_struct={"command": TorchCategorical, "target": Target},
+        input_lens=[command_logits, target_logits],
+    )
+
+    class Distribution(partial_class):
         def to_deterministic(self) -> TorchMultiDistribution:
             children = [
-                _PerSampleDeterministic(loc=child.loc) for child in super().to_deterministic()._flat_child_distributions
+                _PerSampleDeterministic(loc=child.to_deterministic().loc) for child in self._flat_child_distributions
             ]
             return TorchMultiDistribution(tree.unflatten_as(self._original_struct, children))
 
@@ -153,12 +215,7 @@ def _with_per_sample_deterministic_logp(
 class BeyondAllReasonModule(TorchRLModule, ValueFunctionAPI):
     @override(TorchRLModule)
     def get_inference_action_dist_cls(self) -> type[TorchDistribution]:
-        return _with_per_sample_deterministic_logp(
-            Catalog._get_dist_cls_from_action_space(
-                action_space=self.action_space,
-                framework="torch",
-            )
-        )
+        return action_distribution_class(self.action_space)
 
     @override(TorchRLModule)
     def setup(self) -> None:

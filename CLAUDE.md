@@ -39,8 +39,11 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
 - No unit type one-hot in the observation (user's choice, 2026-10-23): a unit is known by its chassis and weapons,
   every unit uses the same policy, the observation has the same size in every scenario. Checkpoints made before
   (42 inputs to the entity encoders, 41 now) do not load anymore.
-- The agents do not aim yet: in display_episodes (explore=False) their attack orders fall where no enemy is within
-  attack_snap_radius (60 elmos), so they wait, and the engine's fire at will engages when enemies come in range.
-  The user chose not to change the targeting for now (bigger snap radius or target relative to the unit discussed).
+- The target point was drawn from RLlib's default for a Box space, a Gaussian clipped to the map by the environment:
+  stage 3 of version_3 drifted to a mean of (-4.4, -4.3), standard deviation ~5 (97 % of the draws off the map, every
+  unit sent to the corner (0, 0)); nothing holds the spread once off the map, hence the entropy drifts of every run.
+  Since 2026-10-25 the target is a Gaussian squashed into the map (BeyondAllReasonModule, _BoundedTarget); checkpoints
+  made before have the same shapes but another meaning: do not resume them.
+- The user does not see the attack orders' aim as a problem: "fight" (attack-move) does the offensive moves.
 - RAM (31 GB, no swap): 3 env runners and the other applications leave little margin; each engine takes ~4.3 GB
   and grows ~0.3 GB/hour. To investigate in the environment (what the headless engine loads).
