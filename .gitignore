@@ -1,6 +1,9 @@
 # Training results (checkpoints, logs): experiments/<experiment or curriculum>/...
 /experiments/
 
+# Videos of the game window (RayMultiAgentEnvironment, "video": true): videos/<experimentation>_<n>.mp4
+/videos/
+
 # Python
 __pycache__/
 *.py[cod]

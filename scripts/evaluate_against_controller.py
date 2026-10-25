@@ -9,7 +9,10 @@ Example (from this repository root):
     python scripts/evaluate_against_controller.py \
         --reinforcement_learning_path experiments/combined_arms_commander_self_play_ppo/reinforcement_learning/base/version_0 \
         --controller AttackNearest --episodes 100
-To watch the games in the game window, on one env runner: --game_speed 4 (a multiple of real time).
+To watch the games in the game window, on one env runner: --game_speed 4 (a multiple of real time);
+--environment_configuration adds entries to its env_config, as JSON, for example the interface preset and a video
+(see RayMultiAgentEnvironment): '{"interface": "cinematic", "video": true}' records into
+videos/<experimentation name>_<n>.mp4.
 The environment configuration is the checkpoint's, as it was pickled when the training started; with
 --experimentation_configuration_file, the file's as the code makes it now (team colours added since, for example). The
 observation and actions must not have changed. --scenario puts another scenario of the catalogue
@@ -18,6 +21,7 @@ observation and actions must not have changed. --scenario puts another scenario 
 
 import argparse
 import dataclasses
+import json
 import warnings
 from pathlib import Path
 
@@ -87,6 +91,12 @@ def main() -> None:
     parser.add_argument("--environment_runners", type=int, default=2)
     parser.add_argument("--deterministic", action="store_true", help="The most likely action instead of a draw")
     parser.add_argument("--game_speed", type=float, help="Shows the games in the game window, at this speed")
+    parser.add_argument(
+        "--environment_configuration",
+        type=json.loads,
+        default={},
+        help="""Entries added to the env_config of the game window, as JSON (e.g., '{"interface": "cinematic"}')""",
+    )
     arguments = parser.parse_args()
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -97,10 +107,13 @@ def main() -> None:
     register_environment(algorithm_configuration.env)
 
     environment_configuration = algorithm_configuration.env_config
+    # The name of the videos: the experimentation's, or the folder of the training (experiments/<name>/...).
+    parts = checkpoint_path.parts
+    experimentation_name = parts[parts.index("experiments") + 1] if "experiments" in parts else "video"
     if arguments.experimentation_configuration_file is not None:
-        environment_configuration = get_configuration_class(
-            arguments.experimentation_configuration_file
-        ).environment_configuration
+        experimentation_configuration = get_configuration_class(arguments.experimentation_configuration_file)
+        environment_configuration = experimentation_configuration.environment_configuration
+        experimentation_name = experimentation_configuration.experimentation_name
     configuration: ReinforcementLearningEnvironmentConfiguration = environment_configuration["configuration"]
     opponent = getattr(controllers, arguments.controller)()
     teams = len(configuration.game.controllers)
@@ -119,6 +132,8 @@ def main() -> None:
             **environment_configuration,
             "render_mode": "human",
             "game_speed": arguments.game_speed,
+            "experimentation_name": experimentation_name,
+            **arguments.environment_configuration,
         }
         arguments.environment_runners = 1
     algorithm_configuration.callbacks(OutcomeCountCallback)
