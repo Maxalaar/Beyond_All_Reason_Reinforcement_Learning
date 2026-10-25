@@ -49,8 +49,9 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   target, but the draws rose to 25-38 % for hours (episodes near the time limit). Decided with the user: the commander
   arena (combined_arms_commander_arena: a commander per side, spawn anywhere in the own half, the game ends when a
   commander dies) for combined_arms_commander_self_play_ppo; 20 scripted games gave no draw, ~26 decisions per game.
-  The commander has no "fight" command: under it the engine makes a builder repair and reclaim before it fights
-  (CBuilderCAI::ExecuteFight; idle, it does nothing on its own). units.armada.commander is armcom; the old
+  The commander keeps "fight" (the user's choice): under it, a builder attacks enemies within ~450 elmos first, and
+  repairs or reclaims only when none is near (CBuilderCAI::ExecuteFight; idle, it does nothing on its own). Making it
+  a pure fighter would need its unit definition changed in the game extension (canRepair, canReclaim are static). units.armada.commander is armcom; the old
   units...t1.commander was the decoy (armdecom), now decoy_commander.
 - RAM (31 GB, no swap), measured on combined_arms_self_play_ppo (2 env runners, 36 agents, 2026-10-25): the training
   takes ~19 GB from its first minute (engines 8.5, learner 3.9, Ray object store 1.9, env runners 1.6, algorithm 1.3),

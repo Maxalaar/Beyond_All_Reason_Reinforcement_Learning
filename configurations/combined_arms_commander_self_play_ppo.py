@@ -5,9 +5,10 @@ Scenario (beyond_all_reason_environment.scenarios.combined_arms_commander_arena)
 2 game-minutes), each side spawned anywhere in its half, the game ending when a commander dies
 (commander_death_ends_game).
 Chosen here, for this experiment: Agent() on both sides, the 38 agents with one shared policy, one weapon slot per unit,
-and a terminal reward (+1 victory, -1 defeat, 0 for a draw at the time limit). Every command allowed, but "fight" for
-the commander: under it, the engine makes a builder repair and reclaim before it fights; with move, attack and stop it
-only fights (fire at will while it moves). Its D-gun needs a manual fire command, which it does not have.
+and a terminal reward (+1 victory, -1 defeat, 0 for a draw at the time limit). Every command allowed, "fight" for
+the commander too (decided with the user): a builder under it attacks the enemies within ~450 elmos first, and repairs
+damaged allies or reclaims wrecks only when no enemy is near. Its D-gun needs a manual fire command, which it does
+not have.
 Trained from scratch.
 
 Why: in combined_arms_self_play_ppo (spawn bands at the edges, every unit to destroy), the draws rose to 25-38 % for
@@ -31,9 +32,7 @@ from beyond_all_reason_environment import (
     ReinforcementLearningEnvironmentConfiguration,
     RewardWeights,
 )
-from beyond_all_reason_environment.reinforcement_learning_environment_configuration import COMMANDS
 from beyond_all_reason_environment.scenarios import combined_arms_commander_arena
-from beyond_all_reason_environment.units import units
 from maxalaar_reinforcement_learning.configuration.experimentation_configuration import ExperimentationConfiguration
 
 from beyond_all_reason_reinforcement_learning.architecture.beyond_all_reason_module import BeyondAllReasonModule
@@ -46,9 +45,7 @@ combined_arms_commander_self_play_ppo = ExperimentationConfiguration(
         "configuration": ReinforcementLearningEnvironmentConfiguration(
             game=GameConfiguration(scenario=combined_arms_commander_arena, controllers=[Agent(), Agent()]),
             observation=ObservationConfiguration(maximum_weapons_per_unit=1),
-            action=ActionConfiguration(
-                commands={"default": list(COMMANDS), units.armada.commander: [c for c in COMMANDS if c != "fight"]}
-            ),
+            action=ActionConfiguration(),
             rewards=RewardWeights(damage_dealt=0.0, damage_received=0.0, kill=0.0, victory=1.0, defeat=-1.0),
         )
     },
