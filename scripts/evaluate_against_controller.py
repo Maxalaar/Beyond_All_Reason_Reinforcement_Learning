@@ -12,7 +12,8 @@ Example (from this repository root):
 To watch the games in the game window, on one env runner: --game_speed 4 (a multiple of real time).
 The environment configuration is the checkpoint's, as it was pickled when the training started; with
 --experimentation_configuration_file, the file's as the code makes it now (team colours added since, for example). The
-observation and actions must not have changed.
+observation and actions must not have changed. --scenario puts another scenario of the catalogue
+(beyond_all_reason_environment.scenarios) in it, with as many teams.
 """
 
 import argparse
@@ -21,6 +22,7 @@ import warnings
 from pathlib import Path
 
 import beyond_all_reason_environment.controllers as controllers
+import beyond_all_reason_environment.scenarios as scenarios
 import ray
 from beyond_all_reason_environment import Agent, ReinforcementLearningEnvironmentConfiguration
 from maxalaar_reinforcement_learning.checkpoints.get_checkpoint_algorithm_configuration import (
@@ -77,6 +79,9 @@ def main() -> None:
     parser.add_argument(
         "--experimentation_configuration_file", help="The environment configuration of this file, not the checkpoint's"
     )
+    parser.add_argument(
+        "--scenario", help="A scenario of beyond_all_reason_environment.scenarios, instead of the configuration's"
+    )
     parser.add_argument("--controller", default="AttackNearest", help="A controller of beyond_all_reason_environment")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--environment_runners", type=int, default=2)
@@ -99,7 +104,8 @@ def main() -> None:
     configuration: ReinforcementLearningEnvironmentConfiguration = environment_configuration["configuration"]
     opponent = getattr(controllers, arguments.controller)()
     teams = len(configuration.game.controllers)
-    game = dataclasses.replace(configuration.game, controllers=[Agent()] + [opponent] * (teams - 1))
+    scenario = configuration.game.scenario if arguments.scenario is None else getattr(scenarios, arguments.scenario)
+    game = dataclasses.replace(configuration.game, scenario=scenario, controllers=[Agent()] + [opponent] * (teams - 1))
     environment_configuration = {
         **environment_configuration,
         "configuration": dataclasses.replace(configuration, game=game),
@@ -144,6 +150,7 @@ def main() -> None:
     print(f"checkpoint: {checkpoint_path}")
     print(
         f"against {arguments.controller}, {episodes:.0f} episodes"
+        f"{'' if arguments.scenario is None else ', scenario ' + arguments.scenario}"
         f" ({'deterministic' if arguments.deterministic else 'sampled'} actions):"
     )
     print(
