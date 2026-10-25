@@ -77,3 +77,11 @@ def test_the_stopping_rate_waits_for_a_full_window():
     assert logger.peek("victory_rate_full_window") == 0.0  # a lucky start does not stop the training
     callback.on_episode_end(episode=two_agent_episode(0, 1), metrics_logger=logger, env_index=0)
     assert logger.peek("victory_rate_full_window") == (WINDOW - 1) / WINDOW
+
+
+def test_a_side_that_lost_its_commander_lost_with_units_left():
+    # Two enemies still alive, but the environment says they lost (scenario.commander_death_ends_game).
+    episode = two_agent_episode(1, 2)
+    final_information = {"episode_frame": 64, "allies_alive": 1, "enemies_alive": 2}
+    episode.agent_episodes["b"].infos[-1] = {**final_information, "allies_defeated": False, "enemies_defeated": True}
+    assert rates(VictoryCallback(), [episode]) == (1.0, 0.0)

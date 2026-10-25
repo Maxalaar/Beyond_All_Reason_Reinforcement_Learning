@@ -45,6 +45,13 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   Since 2026-10-25 the target is a Gaussian squashed into the map (BeyondAllReasonModule, _BoundedTarget); checkpoints
   made before have the same shapes but another meaning: do not resume them.
 - The user does not see the attack orders' aim as a problem: "fight" (attack-move) does the offensive moves.
+- combined_arms_self_play_ppo (version_2, 848 iterations, 2026-10-25): the entropy fell steadily with the bounded
+  target, but the draws rose to 25-38 % for hours (episodes near the time limit). Decided with the user: the commander
+  arena (combined_arms_commander_arena: a commander per side, spawn anywhere in the own half, the game ends when a
+  commander dies) for combined_arms_commander_self_play_ppo; 20 scripted games gave no draw, ~26 decisions per game.
+  The commander has no "fight" command: under it the engine makes a builder repair and reclaim before it fights
+  (CBuilderCAI::ExecuteFight; idle, it does nothing on its own). units.armada.commander is armcom; the old
+  units...t1.commander was the decoy (armdecom), now decoy_commander.
 - RAM (31 GB, no swap), measured on combined_arms_self_play_ppo (2 env runners, 36 agents, 2026-10-25): the training
   takes ~19 GB from its first minute (engines 8.5, learner 3.9, Ray object store 1.9, env runners 1.6, algorithm 1.3),
   then +2 GB/hour spread over engines (+0.27 each, all anonymous heap), object store (+0.5), learner (+0.5) and env
