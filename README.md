@@ -60,10 +60,11 @@ python ../Maxalaar_Reinforcement_Learning/scripts/curriculum_training.py \
 python ../Maxalaar_Reinforcement_Learning/scripts/reinforcement_learning_training.py \
     --experimentation_configuration_file configurations/one_versus_one_ppo.py
 
-# Watch a trained policy in the game window
+# Watch a trained policy in the game window, here at 4 times real time (Alt+= and Alt+- change it in the window)
 python ../Maxalaar_Reinforcement_Learning/scripts/display_episodes.py \
-    --experimentation_configuration_file configurations/five_versus_five_passive_ppo.py \
-    --reinforcement_learning_path experiments/pawn_curriculum/version_0/stage_1_five_versus_five_passive_ppo/reinforcement_learning/base/version_0
+    --experimentation_configuration_file configurations/combined_arms_self_play_ppo.py \
+    --reinforcement_learning_path experiments/combined_arms_self_play_ppo/reinforcement_learning/base/version_2 \
+    --environment_configuration '{"game_speed": 4}'
 
 python scripts/try_ray_multi_agent_environment.py   # a few random episodes through the RLlib adapter
 pytest                                              # tests, without the engine

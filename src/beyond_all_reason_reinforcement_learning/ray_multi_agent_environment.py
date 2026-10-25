@@ -3,7 +3,9 @@
 Thin adapter: no business logic, pure delegation. Configuration is passed via
 ``env_config["configuration"]`` (a ReinforcementLearningEnvironmentConfiguration instance);
 falls back to defaults if absent. A ``render_mode`` in env_config (any value, as RLlib evaluation passes it)
-opens the game window at the graphical speed, like the Godot environments.
+opens the game window, like the Godot environments, at ``env_config["game_speed"]`` (a multiple of real time) or at
+the graphical speed (real time); in the window, Alt+= and Alt+- change it. From display_episodes.py:
+``--environment_configuration '{"game_speed": 4}'``.
 
 All agents share the same observation and action spaces (homogeneous, shared policy).
 An agent whose unit dies is done on its own; the episode goes on for the others. ``__all__`` is
@@ -27,10 +29,14 @@ class RayMultiAgentEnvironment(MultiAgentEnv):
             "configuration"
         ) or ReinforcementLearningEnvironmentConfiguration()
         if (env_config or {}).get("render_mode") is not None:
-            # Asked to render (e.g. to watch a trained policy): the game window, at the graphical speed.
+            # Asked to render (to watch a trained policy): the game window, at the speed asked or the graphical one.
             engine = configuration.engine
+            speed = (env_config or {}).get("game_speed")
             configuration = replace(
-                configuration, engine=replace(engine, speed=None, graphics=replace(engine.graphics, show=True))
+                configuration,
+                engine=replace(
+                    engine, speed=None if speed is None else float(speed), graphics=replace(engine.graphics, show=True)
+                ),
             )
         self._env = ReinforcementLearningEnvironment(configuration)
         self.possible_agents = list(self._env.possible_agents)
