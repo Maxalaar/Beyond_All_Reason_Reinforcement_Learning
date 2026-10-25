@@ -2,14 +2,17 @@
 controller takes every other team, and the victory, defeat and draw rates are counted over a number of episodes.
 
 Made for the self-play trainings, whose victory rate (~50 %) says nothing of the level reached.
-The rates come from VictoryCallback (the checkpoint's callback), on each evaluation env runner; with at most 100
-episodes per runner (its window), they cover every episode of the evaluation.
+The outcome of each episode is VictoryCallback's; every episode of the evaluation counts (VictoryCallback's own rates
+cover the last 100 of an env runner only). Each env runner prints its running count after every episode.
 
 Example (from this repository root):
     python scripts/evaluate_against_controller.py \
         --reinforcement_learning_path experiments/combined_arms_commander_self_play_ppo/reinforcement_learning/base/version_0 \
         --controller AttackNearest --episodes 100
 To watch the games in the game window, on one env runner: --game_speed 4 (a multiple of real time).
+The environment configuration is the checkpoint's, as it was pickled when the training started; with
+--experimentation_configuration_file, the file's as the code makes it now (team colours added since, for example). The
+observation and actions must not have changed.
 """
 
 import argparse
@@ -24,7 +27,38 @@ from maxalaar_reinforcement_learning.checkpoints.get_checkpoint_algorithm_config
     get_checkpoint_algorithm_configuration,
 )
 from maxalaar_reinforcement_learning.environments.register_environments import register_environment
+from maxalaar_reinforcement_learning.utilities.save.get_configuration_class import get_configuration_class
 from ray.rllib.algorithms import AlgorithmConfig
+
+from beyond_all_reason_reinforcement_learning.victory_callback import VictoryCallback
+
+
+class OutcomeCountCallback(VictoryCallback):
+    """VictoryCallback, plus the number of victories, defeats and episodes of the evaluation (summed over its env
+    runners), and the running count of this env runner printed after each episode."""
+
+    def __init__(self):
+        super().__init__()
+        self._victories = self._defeats = self._episodes = 0
+
+    def on_episode_end(self, *, episode, metrics_logger=None, **kwargs) -> None:
+        outcomes = len(self._outcomes)
+        super().on_episode_end(episode=episode, metrics_logger=metrics_logger, **kwargs)
+        if metrics_logger is None or (len(self._outcomes) == outcomes and len(self._outcomes) < self._outcomes.maxlen):
+            return
+        victory, defeat = self._outcomes[-1]
+        self._victories += victory
+        self._defeats += defeat
+        self._episodes += 1
+        metrics_logger.log_value("victories", victory, reduce="sum")
+        metrics_logger.log_value("defeats", defeat, reduce="sum")
+        metrics_logger.log_value("counted_episodes", 1, reduce="sum")
+        outcome = "victory" if victory else "defeat" if defeat else "draw"
+        print(
+            f"episode {self._episodes}: {outcome}; {self._victories:.0f} victories, {self._defeats:.0f} defeats"
+            f" ({self._victories / self._episodes:.0%} victories)",
+            flush=True,
+        )
 
 
 def latest_checkpoint_path(reinforcement_learning_path: Path) -> Path:
@@ -36,8 +70,13 @@ def latest_checkpoint_path(reinforcement_learning_path: Path) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--reinforcement_learning_path", type=Path, help="A training (version_N): its latest checkpoint")
+    parser.add_argument(
+        "--reinforcement_learning_path", type=Path, help="A training (version_N): its latest checkpoint"
+    )
     parser.add_argument("--checkpoint_path", type=Path, help="A checkpoint, instead of the latest of the training")
+    parser.add_argument(
+        "--experimentation_configuration_file", help="The environment configuration of this file, not the checkpoint's"
+    )
     parser.add_argument("--controller", default="AttackNearest", help="A controller of beyond_all_reason_environment")
     parser.add_argument("--episodes", type=int, default=100)
     parser.add_argument("--environment_runners", type=int, default=2)
@@ -46,16 +85,23 @@ def main() -> None:
     arguments = parser.parse_args()
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-    checkpoint_path = (arguments.checkpoint_path or latest_checkpoint_path(arguments.reinforcement_learning_path)).resolve()
+    checkpoint_path = (
+        arguments.checkpoint_path or latest_checkpoint_path(arguments.reinforcement_learning_path)
+    ).resolve()
     algorithm_configuration = get_checkpoint_algorithm_configuration(checkpoint_path)
     register_environment(algorithm_configuration.env)
 
-    configuration: ReinforcementLearningEnvironmentConfiguration = algorithm_configuration.env_config["configuration"]
+    environment_configuration = algorithm_configuration.env_config
+    if arguments.experimentation_configuration_file is not None:
+        environment_configuration = get_configuration_class(
+            arguments.experimentation_configuration_file
+        ).environment_configuration
+    configuration: ReinforcementLearningEnvironmentConfiguration = environment_configuration["configuration"]
     opponent = getattr(controllers, arguments.controller)()
     teams = len(configuration.game.controllers)
     game = dataclasses.replace(configuration.game, controllers=[Agent()] + [opponent] * (teams - 1))
     environment_configuration = {
-        **algorithm_configuration.env_config,
+        **environment_configuration,
         "configuration": dataclasses.replace(configuration, game=game),
     }
 
@@ -64,9 +110,12 @@ def main() -> None:
     evaluation_environment_configuration = environment_configuration
     if arguments.game_speed is not None:
         evaluation_environment_configuration = {
-            **environment_configuration, "render_mode": "human", "game_speed": arguments.game_speed
+            **environment_configuration,
+            "render_mode": "human",
+            "game_speed": arguments.game_speed,
         }
         arguments.environment_runners = 1
+    algorithm_configuration.callbacks(OutcomeCountCallback)
     algorithm_configuration.learners(num_learners=0, num_gpus_per_learner=0)
     algorithm_configuration.env_runners(num_env_runners=0, num_envs_per_env_runner=1)
     algorithm_configuration.evaluation(
@@ -90,12 +139,17 @@ def main() -> None:
         algorithm.stop()
         ray.shutdown()
 
-    victory, defeat = results["victory_rate"], results["defeat_rate"]
+    episodes = results["counted_episodes"]
+    victory, defeat = results["victories"] / episodes, results["defeats"] / episodes
     print(f"checkpoint: {checkpoint_path}")
-    print(f"against {arguments.controller}, {results['num_episodes']} episodes"
-          f" ({'deterministic' if arguments.deterministic else 'sampled'} actions):")
-    print(f"  victories {victory:.3f}, defeats {defeat:.3f}, draws {1 - victory - defeat:.3f},"
-          f" episode length {results['episode_len_mean']:.1f}")
+    print(
+        f"against {arguments.controller}, {episodes:.0f} episodes"
+        f" ({'deterministic' if arguments.deterministic else 'sampled'} actions):"
+    )
+    print(
+        f"  victories {victory:.3f}, defeats {defeat:.3f}, draws {1 - victory - defeat:.3f},"
+        f" episode length {results['episode_len_mean']:.1f}"
+    )
 
 
 if __name__ == "__main__":
