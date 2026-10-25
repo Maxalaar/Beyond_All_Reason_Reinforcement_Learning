@@ -45,5 +45,13 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   Since 2026-10-25 the target is a Gaussian squashed into the map (BeyondAllReasonModule, _BoundedTarget); checkpoints
   made before have the same shapes but another meaning: do not resume them.
 - The user does not see the attack orders' aim as a problem: "fight" (attack-move) does the offensive moves.
-- RAM (31 GB, no swap): 3 env runners and the other applications leave little margin; each engine takes ~4.3 GB
-  and grows ~0.3 GB/hour. To investigate in the environment (what the headless engine loads).
+- RAM (31 GB, no swap), measured on combined_arms_self_play_ppo (2 env runners, 36 agents, 2026-10-25): the training
+  takes ~19 GB from its first minute (engines 8.5, learner 3.9, Ray object store 1.9, env runners 1.6, algorithm 1.3),
+  then +2 GB/hour spread over engines (+0.27 each, all anonymous heap), object store (+0.5), learner (+0.5) and env
+  runners (+0.2 each). The desktop applications take 7-10 GB (a Firefox tab 4.25 GB): with them, the machine starts at
+  ~88 %, which put the supervisor in a restart loop. Ray's object store is now capped (ray_object_store_memory, 3 GB).
+- Batch size: counted in env steps with complete episodes, it varied from 10280 to 20387 agent steps (36 agents, dying,
+  episodes getting longer) until the learner ran out of GPU memory (8 GB). count_steps_by "agent_steps" with
+  batch_mode "truncate_episodes" gives a fixed size (to a step of every agent per env runner).
+- The training scripts exit with 0 even when the Tune trial errored: supervise_training.sh looks for "Number of
+  errored trials" in the log to resume.

@@ -83,6 +83,9 @@ configuration.architecture_configuration = {
     "critic_terrain_cnn_channels": [16, 32, 32],
 }
 
+# ── Ray: an object store of 3 GB (/dev/shm); Ray's default, 30 % of the RAM, let it grow +0.5 GB/hour ────────
+combined_arms_self_play_ppo.ray_object_store_memory = 3 * 1024**3
+
 # ── Multi-agent: 36 agents per episode (18 per side), shared policy ───────────────────────────
 configuration.is_multi_agents = True
 configuration.policies = {"shared_policy"}
@@ -105,12 +108,15 @@ configuration.clip_policy_parameter = 0.2
 configuration.entropy_coefficient = 0.001
 configuration.value_function_loss_coefficient = 1.0
 configuration.number_epochs = 10
-# Counted in env steps (complete episodes: ~730 sampled for 600). The dead agents stop acting:
-# combined_arms_attack_nearest_ppo sampled ~5700 agent steps per iteration with its 18 agents, so ~11000 here with 36.
-# 4000 env steps of 5 agents kept the 31 GB machine at 89-90 % RAM (2026-10-18).
-configuration.train_batch_size = 600
+# A batch of a fixed size, in agent steps: 12288 (24 minibatches of 512), to a step of the 36 agents per env runner.
+# Counted in env steps with complete episodes (600), it ranged from 10280 to 20387 agent steps over 848 iterations
+# (longer episodes, fewer deaths), until the learner ran out of GPU memory (8 GB) on 2026-10-25. Truncated episodes go
+# on at the next iteration; PPO bootstraps their value with the critic.
+configuration.count_steps_by = "agent_steps"
+configuration.batch_mode = "truncate_episodes"
+configuration.rollout_fragment_length = "auto"
+configuration.train_batch_size = 12288
 configuration.minibatch_size = 512
-configuration.batch_mode = "complete_episodes"
 configuration.sample_timeout_s = 180
 
 # ── Resources ─────────────────────────────────────────────────────────────────
@@ -133,6 +139,10 @@ configuration.callback = VictoryCallback
 configuration.stopping_criterion = None
 
 # ── Checkpoints: the 10 latest (no score to rank them in self-play) ─────────
-configuration.checkpoint_frequency = 20
+# Every 5 iterations: a restart for the RAM (supervise_training.sh) loses at most 5.
+configuration.checkpoint_frequency = 5
 configuration.number_checkpoint_to_keep = 10
 configuration.checkpoint_score_attribute = None
+# display_episodes.py shows the latest checkpoint (it needs a metric to choose one).
+combined_arms_self_play_ppo.display_episodes_configuration.checkpoint_score_attribute = "training_iteration"
+combined_arms_self_play_ppo.display_episodes_configuration.checkpoint_score_order = "max"
