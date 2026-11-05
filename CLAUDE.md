@@ -63,3 +63,14 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   batch_mode "truncate_episodes" gives a fixed size (to a step of every agent per env runner).
 - The training scripts exit with 0 even when the Tune trial errored: supervise_training.sh looks for "Number of
   errored trials" in the log to resume.
+- Team outcome (decided with the user, 2026-11-05): a whole team wins (+1) or loses (-1) together, its dead units too.
+  Before, a unit dead before the end got 0: in self-play at iteration 1270, 55 % of the unit steps never saw the outcome,
+  and a unit of a losing side was better off dead. Now a dead unit has no observation but is not done: RLlib keeps its
+  last action waiting and completes it at the end of the game, so no step of a dead unit enters the batches.
+  MultiAgentEpisode.cut() drops waiting actions: batch_mode must be "complete_episodes" (a test checks it). Checkpoints
+  made before load, but their critics learned the old returns.
+- combined_arms_commander_rear_spawn_self_play_ppo version_0, old reward (evaluated 2026-11-05 from the rear): iteration
+  1270 won 75.8 % of 817 games against AttackNearest, iteration 550 74.7 % of 427: no measurable gain against the script,
+  though 1270 beats 550 (58 % / 36 %). evaluate_against_controller.py's final count can be wrong when Ray restarts an env
+  runner (225 episodes for ~817): read the running counts in its log. RAM: the plateau (86-87 %, growth ~0.2 GB/hour) sits
+  under the 88 % threshold, spikes of +2-3 points caused 28 restarts in 9 hours, and MAXIMUM_RESTARTS is 30.

@@ -112,12 +112,12 @@ configuration.clip_policy_parameter = 0.2
 configuration.entropy_coefficient = 0.001
 configuration.value_function_loss_coefficient = 1.0
 configuration.number_epochs = 10
-# A batch of a fixed size, in agent steps: 12288 (24 minibatches of 512), to a step of the 38 agents per env runner.
-# Counted in env steps with complete episodes (600), it ranged from 10280 to 20387 agent steps over 848 iterations
-# (longer episodes, fewer deaths), until the learner ran out of GPU memory (8 GB) on 2026-10-25. Truncated episodes go
-# on at the next iteration; PPO bootstraps their value with the critic.
+# Complete episodes: a dead unit's last action waits for the end of the game, which pays it the team's outcome, and
+# MultiAgentEpisode.cut() does not hand waiting actions over (cut by a batch, the unit would lose that outcome). In agent
+# steps: 12288, plus up to a game per env runner (1839 agent steps at most over 115 games, 2026-11-05), under the 20387
+# that ran the learner out of GPU memory (8 GB) on 2026-10-25, when the count was in env steps.
 configuration.count_steps_by = "agent_steps"
-configuration.batch_mode = "truncate_episodes"
+configuration.batch_mode = "complete_episodes"
 configuration.rollout_fragment_length = "auto"
 configuration.train_batch_size = 12288
 configuration.minibatch_size = 512

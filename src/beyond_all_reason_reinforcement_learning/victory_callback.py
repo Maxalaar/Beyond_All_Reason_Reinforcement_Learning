@@ -10,7 +10,7 @@ class VictoryCallback(DefaultCallbacks):
     """Victory and defeat rates of the agents' alliance over the last WINDOW episodes of each environment runner
     (env_runners/victory_rate, env_runners/defeat_rate; RLlib then averages the runners).
 
-    The episode return does not give them once agents can die: a dead agent misses the victory reward. The latest
+    The episode return does not give them in self-play, where it sums the agents of both sides. The latest
     information of the episode tells who lost (beyond_all_reason_environment: allies_defeated, enemies_defeated; a
     side can lose with units left when the scenario ends the game with its commander); neither or both: a draw.
     Older information without them: who is left (allies_alive, enemies_alive).

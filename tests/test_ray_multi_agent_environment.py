@@ -55,3 +55,77 @@ def test_a_render_mode_opens_the_game_window_at_the_graphical_speed():
     assert watched.graphics.show and watched.effective_speed == GRAPHICAL_SPEED
     trained = RayMultiAgentEnvironment({})._env.configuration.engine
     assert not trained.graphics.show and trained.effective_speed == HEADLESS_SPEED
+
+
+def test_rllib_gives_a_dead_agent_the_team_outcome_on_its_last_action():
+    """The contract of ReinforcementLearningEnvironment.step on a real MultiAgentEpisode: an agent stops having
+    observations, and its last action is completed at the end of the episode with the team's reward."""
+    from gymnasium import spaces
+    from ray.rllib.env.multi_agent_episode import MultiAgentEpisode
+
+    space = spaces.Box(-1.0, 1.0, (1,))
+    agents = ["alive", "dead"]
+    episode = MultiAgentEpisode(
+        observation_space=dict.fromkeys(agents, space), action_space=dict.fromkeys(agents, space)
+    )
+    observation = [0.0]
+    not_done = dict.fromkeys(agents, False)
+    episode.add_env_reset(observations=dict.fromkeys(agents, observation), infos=dict.fromkeys(agents, {}))
+    # The unit of "dead" dies during this step: no observation, not terminated.
+    episode.add_env_step(
+        observations={"alive": observation},
+        actions=dict.fromkeys(agents, [0.0]),
+        rewards=dict.fromkeys(agents, 0.0),
+        terminateds=not_done,
+        truncateds=not_done,
+    )
+    assert len(episode.agent_episodes["dead"]) == 0
+    episode.add_env_step(
+        observations={"alive": observation},
+        actions={"alive": [0.0]},
+        rewards=dict.fromkeys(agents, 0.0),
+        terminateds=not_done,
+        truncateds=not_done,
+    )
+    # The team wins: the last step gives every agent its observation, reward and end.
+    episode.add_env_step(
+        observations=dict.fromkeys(agents, observation),
+        actions={"alive": [0.0]},
+        rewards=dict.fromkeys(agents, 1.0),
+        terminateds={**dict.fromkeys(agents, True), "__all__": True},
+        truncateds={**not_done, "__all__": False},
+    )
+    dead = episode.agent_episodes["dead"]
+    assert dead.is_terminated and len(dead) == 1 and list(dead.get_rewards()) == [1.0]
+    assert list(episode.agent_episodes["alive"].get_rewards()) == [0.0, 0.0, 1.0]
+
+
+def test_rllib_accepts_a_dead_agent_at_the_time_limit():
+    """A draw: the last step gives the dead agent an observation too, which RLlib asks for at a truncation."""
+    from gymnasium import spaces
+    from ray.rllib.env.multi_agent_episode import MultiAgentEpisode
+
+    space = spaces.Box(-1.0, 1.0, (1,))
+    agents = ["alive", "dead"]
+    episode = MultiAgentEpisode(
+        observation_space=dict.fromkeys(agents, space), action_space=dict.fromkeys(agents, space)
+    )
+    observation = [0.0]
+    not_done = dict.fromkeys(agents, False)
+    episode.add_env_reset(observations=dict.fromkeys(agents, observation), infos=dict.fromkeys(agents, {}))
+    episode.add_env_step(
+        observations={"alive": observation},
+        actions=dict.fromkeys(agents, [0.0]),
+        rewards=dict.fromkeys(agents, 0.0),
+        terminateds=not_done,
+        truncateds=not_done,
+    )
+    episode.add_env_step(
+        observations=dict.fromkeys(agents, observation),
+        actions={"alive": [0.0]},
+        rewards=dict.fromkeys(agents, 0.0),
+        terminateds={**not_done, "__all__": False},
+        truncateds={**dict.fromkeys(agents, True), "__all__": True},
+    )
+    assert episode.is_done and len(episode.agent_episodes["dead"]) == 1
+    assert list(episode.agent_episodes["dead"].get_rewards()) == [0.0]

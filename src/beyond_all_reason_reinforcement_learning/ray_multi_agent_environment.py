@@ -12,9 +12,10 @@ relative to the working directory (the repository root). From display_episodes.p
 ``--environment_configuration '{"game_speed": 2, "interface": "cinematic", "video": true}'``.
 
 All agents share the same observation and action spaces (homogeneous, shared policy).
-An agent whose unit dies is done on its own; the episode goes on for the others. ``__all__`` is
-set once no agent is left: in truncations when the time limit ended the episode, otherwise in
-terminations (one side wiped out).
+An agent whose unit dies stops acting but stays in the episode: RLlib keeps its last action hanging, adds up its
+rewards and completes that step at the end of the episode, so the whole team shares the victory or the defeat and no
+step of a dead unit enters the batches. ``__all__`` is set once no agent is left: in truncations when the time limit
+ended the episode, otherwise in terminations (one side defeated).
 """
 
 from dataclasses import fields, replace
@@ -72,7 +73,7 @@ class RayMultiAgentEnvironment(MultiAgentEnv):
 
     def step(self, action_dict):
         observations, rewards, terminations, truncations, infos = self._env.step(action_dict)
-        # One agent done (its unit died) does not end the episode: only when the environment has no agent left.
+        # A dead unit does not end the episode: only when the environment has no agent left.
         over = not self._env.agents
         truncations["__all__"] = over and any(truncations.values())
         terminations["__all__"] = over and not truncations["__all__"]
