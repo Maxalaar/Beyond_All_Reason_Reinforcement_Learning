@@ -34,6 +34,10 @@ from ray.rllib.algorithms import AlgorithmConfig
 from ray.rllib.callbacks.callbacks import RLlibCallback
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 
+from beyond_all_reason_reinforcement_learning.evaluation_rounds import ROUND_EPISODES, evaluate_in_rounds
+
+# Ray's default is 30 % of the RAM.
+OBJECT_STORE_MEMORY = 3 * 1024**3
 POLICIES = ("first", "second")
 # Where a checkpoint keeps the weights of the shared policy of the self-play trainings.
 SHARED_POLICY = Path("learner_group") / "learner" / "rl_module" / "shared_policy"
@@ -115,7 +119,7 @@ def evaluate(arguments: argparse.Namespace, first_team: int, episodes: int) -> d
     algorithm_configuration.evaluation(
         evaluation_interval=1,
         evaluation_num_env_runners=environment_runners,
-        evaluation_duration=episodes,
+        evaluation_duration=min(ROUND_EPISODES, episodes),
         evaluation_duration_unit="episodes",
         evaluation_parallel_to_training=False,
         evaluation_sample_timeout_s=60 * 60,
@@ -144,10 +148,9 @@ def evaluate(arguments: argparse.Namespace, first_team: int, episodes: int) -> d
                 lambda env_runner, policy=policy: parameter_sum(env_runner.module[policy]), local_env_runner=False
             )
             print(f"weights of {policy} ({checkpoint_path.name}): played {played}", flush=True)
-        results = algorithm.evaluate()["env_runners"]
+        return evaluate_in_rounds(algorithm, episodes, ("first_victories", "first_defeats", "counted_episodes"))
     finally:
         algorithm.stop()
-    return {key: results[key] for key in ("first_victories", "first_defeats", "counted_episodes")}
 
 
 def main() -> None:
@@ -170,7 +173,7 @@ def main() -> None:
     arguments = parser.parse_args()
     warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-    ray.init()
+    ray.init(object_store_memory=OBJECT_STORE_MEMORY)
     try:
         sides = [evaluate(arguments, first_team, arguments.episodes // 2) for first_team in (0, 1)]
     finally:

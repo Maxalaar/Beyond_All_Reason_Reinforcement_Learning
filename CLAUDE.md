@@ -71,6 +71,10 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   made before load, but their critics learned the old returns.
 - combined_arms_commander_rear_spawn_self_play_ppo version_0, old reward (evaluated 2026-11-05 from the rear): iteration
   1270 won 75.8 % of 817 games against AttackNearest, iteration 550 74.7 % of 427: no measurable gain against the script,
-  though 1270 beats 550 (58 % / 36 %). evaluate_against_controller.py's final count can be wrong when Ray restarts an env
-  runner (225 episodes for ~817): read the running counts in its log. RAM: the plateau (86-87 %, growth ~0.2 GB/hour) sits
-  under the 88 % threshold, spikes of +2-3 points caused 28 restarts in 9 hours, and MAXIMUM_RESTARTS is 30.
+  though 1270 beats 550 (58 % / 36 %). RAM, measured by process (2026-11-06):
+  - Evaluation: EnvRunner.sample(num_episodes=...) keeps its finished episodes until it returns, ~65 kB per agent step
+    for the terrain alone: a runner grew to 17 GB, and Ray's memory monitor killed workers at 95 %. It kills the most
+    recently scheduled first, so 19 fresh replacements of 0.4 GB died before the runner of 17 GB, and "225 episodes" were
+    reported for ~817 played. The evaluation scripts now play rounds of 20 episodes (evaluation_rounds.py): 1.1 GB.
+  - Training: no explosion, 85 % and at most 87.6 % over 10 minutes: engines 8.5 GB, desktop 7.6, learner 4.9, env runners
+    2, driver 1.7. No worker was lost in the 28 restarts of version_0: spikes crossed the supervisor's 88 %, now 91 %.

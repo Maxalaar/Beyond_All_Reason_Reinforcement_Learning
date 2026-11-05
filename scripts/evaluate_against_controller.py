@@ -36,7 +36,11 @@ from maxalaar_reinforcement_learning.environments.register_environments import r
 from maxalaar_reinforcement_learning.utilities.save.get_configuration_class import get_configuration_class
 from ray.rllib.algorithms import AlgorithmConfig
 
+from beyond_all_reason_reinforcement_learning.evaluation_rounds import ROUND_EPISODES, evaluate_in_rounds
 from beyond_all_reason_reinforcement_learning.victory_callback import VictoryCallback
+
+# Ray's default is 30 % of the RAM.
+OBJECT_STORE_MEMORY = 3 * 1024**3
 
 
 class OutcomeCountCallback(VictoryCallback):
@@ -142,7 +146,7 @@ def main() -> None:
     algorithm_configuration.evaluation(
         evaluation_interval=1,
         evaluation_num_env_runners=arguments.environment_runners,
-        evaluation_duration=arguments.episodes,
+        evaluation_duration=min(ROUND_EPISODES, arguments.episodes),
         evaluation_duration_unit="episodes",
         evaluation_parallel_to_training=False,
         evaluation_sample_timeout_s=60 * 60,
@@ -151,11 +155,11 @@ def main() -> None:
         ),
     )
 
-    ray.init()
+    ray.init(object_store_memory=OBJECT_STORE_MEMORY)
     algorithm = algorithm_configuration.build()
     try:
         algorithm.restore(str(checkpoint_path))
-        results = algorithm.evaluate()["env_runners"]
+        results = evaluate_in_rounds(algorithm, arguments.episodes, ("victories", "defeats", "counted_episodes"))
     finally:
         algorithm.stop()
         ray.shutdown()
