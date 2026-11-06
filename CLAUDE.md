@@ -78,3 +78,8 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
     reported for ~817 played. The evaluation scripts now play rounds of 20 episodes (evaluation_rounds.py): 1.1 GB.
   - Training: no explosion, 85 % and at most 87.6 % over 10 minutes: engines 8.5 GB, desktop 7.6, learner 4.9, env runners
     2, driver 1.7. No worker was lost in the 28 restarts of version_0: spikes crossed the supervisor's 88 %, now 91 %.
+- combined_arms_commander_rear_spawn_self_play_ppo version_1 (decided with the user, 2026-11-06): the same scenario as
+  version_0, from scratch, with the team outcome. Checked before starting, on a run deleted after: episode returns exactly
+  0 in self-play, batches of 13200 to 14400 agent steps, a resume by the supervisor from its checkpoint, 7 GB for the 2
+  engines. To start: experiments/combined_arms_commander_rear_spawn_self_play_ppo/supervise_training.sh.
+

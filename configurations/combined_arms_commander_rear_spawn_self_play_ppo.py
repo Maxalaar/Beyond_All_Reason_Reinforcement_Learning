@@ -14,12 +14,18 @@ who wins. combined_arms_commander_self_play_ppo version_0 at iteration 550, trai
 manoeuvres count most.
 version_0 started from the weights of combined_arms_commander_self_play_ppo version_0 at iteration 550 (2026-10-26:
 --initialization_checkpoint_path, a read-only copy of its checkpoint_000110 in
-experiments/combined_arms_commander_self_play_ppo/saved_checkpoints/version_0_iteration_550).
-What to watch: the draw rate and the episode length (armies further apart, longer episodes), the entropy (-1.4 at
-the end of version_0, still falling). No stopping criterion: stopped by hand.
+experiments/combined_arms_commander_self_play_ppo/saved_checkpoints/version_0_iteration_550), with the old reward: a
+unit dead before the end of the game got no outcome.
+version_1 starts from scratch (decided with the user, 2026-11-06), with the team outcome: a whole team wins (+1) or
+loses (-1) together, its dead units too, on complete episodes.
+What to watch: the draw rate and the episode length (armies further apart, longer episodes), the entropy (about -1.9 at
+the end of version_0). The self-play victory rate says nothing of the level: evaluate against AttackNearest (version_0
+at iteration 1270: 75.8 % of 817 games) with scripts/evaluate_against_controller.py. No stopping criterion: stopped by
+hand.
 
 Usage (from this repository root): experiments/combined_arms_commander_rear_spawn_self_play_ppo/supervise_training.sh
-(stops and resumes for the RAM; INITIALIZATION_CHECKPOINT_PATH=... for the weights to start from), or
+(a new version from scratch; stops and resumes for the RAM; TRAINING_PATH=<version_N> resumes that version,
+INITIALIZATION_CHECKPOINT_PATH=<checkpoint> starts from those weights), or
     python ../Maxalaar_Reinforcement_Learning/scripts/reinforcement_learning_training.py \
         --experimentation_configuration_file configurations/combined_arms_commander_rear_spawn_self_play_ppo.py \
         [--initialization_checkpoint_path <checkpoint>]
