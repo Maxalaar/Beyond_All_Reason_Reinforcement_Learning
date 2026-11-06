@@ -13,7 +13,6 @@ class VictoryCallback(DefaultCallbacks):
     The episode return does not give them in self-play, where it sums the agents of both sides. The latest
     information of the episode tells who lost (beyond_all_reason_environment: allies_defeated, enemies_defeated; a
     side can lose with units left when the scenario ends the game with its commander); neither or both: a draw.
-    Older information without them: who is left (allies_alive, enemies_alive).
 
     Also the victory rate against each number of opponents at the start of the episode
     (env_runners/victory_rate_against_<number>), over the last WINDOW episodes with that number: it shows where the
@@ -44,10 +43,7 @@ class VictoryCallback(DefaultCallbacks):
         if not informations or metrics_logger is None:
             return
         last = max(informations, key=lambda information: information.get("episode_frame", 0))
-        if "allies_defeated" in last:
-            allies_defeated, enemies_defeated = bool(last["allies_defeated"]), bool(last["enemies_defeated"])
-        else:
-            allies_defeated, enemies_defeated = last.get("allies_alive", 0) == 0, last.get("enemies_alive", 0) == 0
+        allies_defeated, enemies_defeated = bool(last["allies_defeated"]), bool(last["enemies_defeated"])
         victory = float(enemies_defeated and not allies_defeated)
         self._outcomes.append((victory, float(allies_defeated and not enemies_defeated)))
         # Every agent is there at the reset: the first information of any of them counts the opponents.

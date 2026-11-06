@@ -11,7 +11,13 @@ from beyond_all_reason_reinforcement_learning.victory_callback import WINDOW, Vi
 
 
 def information(frame: int, allies_alive: int, enemies_alive: int) -> dict:
-    return {"episode_frame": frame, "allies_alive": allies_alive, "enemies_alive": enemies_alive}
+    return {
+        "episode_frame": frame,
+        "allies_alive": allies_alive,
+        "enemies_alive": enemies_alive,
+        "allies_defeated": allies_alive == 0,
+        "enemies_defeated": enemies_alive == 0,
+    }
 
 
 def two_agent_episode(final_allies_alive: int, final_enemies_alive: int) -> MultiAgentEpisode:
