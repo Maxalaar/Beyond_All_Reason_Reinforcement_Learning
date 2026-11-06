@@ -75,6 +75,7 @@ import math
 from typing import Any
 
 import numpy as np
+import ray
 import torch
 import torch.nn as nn
 import tree
@@ -341,7 +342,8 @@ class BeyondAllReasonModule(TorchRLModule, ValueFunctionAPI):
         )
 
         self.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-        if not is_env_runner_process():
+        # Without Ray (a team played by a checkpoint, in scripts/play_games.py): is_env_runner_process would start it.
+        if ray.is_initialized() and not is_env_runner_process():
             print(self)
 
     # ── Encoding ──────────────────────────────────────────────────────────────────

@@ -24,6 +24,14 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   "beyond_all_reason_reinforcement_learning.ray_multi_agent_environment.RayMultiAgentEnvironment"), registered by the
   library (register_environments.register_environment).
 
+## Who plays a team (decided with the user, 2026-11-06)
+- Agent() is the bridge to RLlib (trainings); Checkpoint(path) is played by RayMultiAgentEnvironment, hidden from RLlib
+  (checkpoint_controller.py); the scripted controllers run in the gadget. scripts/play_games.py plays checkpoints and
+  scripted teams without RLlib's Algorithm; its environment configuration always comes from the configuration file.
+- It replaced evaluate_against_controller.py and evaluate_checkpoints_against_each_other.py without a direct comparison
+  of the same checkpoint (stopped by the user's choice as too long): version_1 at iteration 984 won 82 of 109 games
+  against AttackNearest. Training against a Checkpoint: wrapper checked with the engine, no real training run yet.
+
 ## State of the experiments (2026-10-23)
 - pawn_curriculum (stages numbered from 1): 1v1 and 5v5 against Passive reach 90 % victories in ~30 min.
   5v5 against HoldAndFire got stuck in avoiding the fight (draws 0, defeats -1); 5 against 1 to 5 AttackNearest
@@ -75,7 +83,7 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   - Evaluation: EnvRunner.sample(num_episodes=...) keeps its finished episodes until it returns, ~65 kB per agent step
     for the terrain alone: a runner grew to 17 GB, and Ray's memory monitor killed workers at 95 %. It kills the most
     recently scheduled first, so 19 fresh replacements of 0.4 GB died before the runner of 17 GB, and "225 episodes" were
-    reported for ~817 played. The evaluation scripts now play rounds of 20 episodes (evaluation_rounds.py): 1.1 GB.
+    reported for ~817 played. Since 2026-11-06, scripts/play_games.py plays without RLlib's Algorithm and keeps no episode.
   - Training: no explosion, 85 % and at most 87.6 % over 10 minutes: engines 8.5 GB, desktop 7.6, learner 4.9, env runners
     2, driver 1.7. No worker was lost in the 28 restarts of version_0: spikes crossed the supervisor's 88 %, now 91 %.
 - combined_arms_commander_rear_spawn_self_play_ppo version_1 (decided with the user, 2026-11-06): the same scenario as

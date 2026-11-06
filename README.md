@@ -66,6 +66,10 @@ python ../Maxalaar_Reinforcement_Learning/scripts/display_episodes.py \
     --reinforcement_learning_path experiments/combined_arms_self_play_ppo/reinforcement_learning/base/version_2 \
     --environment_configuration '{"game_speed": 4}'
 
-python scripts/try_ray_multi_agent_environment.py   # a few random episodes through the RLlib adapter
+# Games between teams: each one a checkpoint, a training (its latest checkpoint) or a scripted controller
+python scripts/play_games.py \
+    --experimentation_configuration_file configurations/combined_arms_commander_rear_spawn_self_play_ppo.py \
+    --teams experiments/combined_arms_commander_rear_spawn_self_play_ppo/reinforcement_learning/base/version_1 AttackNearest
+
 pytest                                              # tests, without the engine
 ```

@@ -20,7 +20,7 @@ version_1 starts from scratch (decided with the user, 2026-11-06), with the team
 loses (-1) together, its dead units too, on complete episodes.
 What to watch: the draw rate and the episode length (armies further apart, longer episodes), the entropy (about -1.9 at
 the end of version_0). The self-play victory rate says nothing of the level: evaluate against AttackNearest (version_0
-at iteration 1270: 75.8 % of 817 games) with scripts/evaluate_against_controller.py. No stopping criterion: stopped by
+at iteration 1270: 75.8 % of 817 games) with scripts/play_games.py. No stopping criterion: stopped by
 hand.
 
 Usage (from this repository root): experiments/combined_arms_commander_rear_spawn_self_play_ppo/start_training.sh

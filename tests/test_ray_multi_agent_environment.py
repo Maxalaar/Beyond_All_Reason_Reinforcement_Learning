@@ -6,6 +6,7 @@ pytest.importorskip("ray")
 
 from beyond_all_reason_environment.engine_configuration import GRAPHICAL_SPEED, HEADLESS_SPEED  # noqa: E402
 
+from beyond_all_reason_reinforcement_learning.checkpoint_controller import CheckpointPlayers  # noqa: E402
 from beyond_all_reason_reinforcement_learning.ray_multi_agent_environment import RayMultiAgentEnvironment  # noqa: E402
 
 
@@ -23,10 +24,37 @@ class ScriptedEnvironment:
         return {agent: None for agent in done}, {agent: 0.0 for agent in done}, terminations, truncations, {}
 
 
-def adapter(steps) -> RayMultiAgentEnvironment:
+def adapter(steps, players=None) -> RayMultiAgentEnvironment:
     environment = RayMultiAgentEnvironment.__new__(RayMultiAgentEnvironment)
     environment._env = ScriptedEnvironment(steps)
+    environment._checkpoint_players = players or CheckpointPlayers({})
+    environment._observations = {}
     return environment
+
+
+def test_rllib_does_not_see_the_agents_a_checkpoint_plays():
+    class Players(CheckpointPlayers):
+        def actions(self, observations):
+            return {agent: "played by the checkpoint" for agent in observations if self.plays(agent)}
+
+    environment = adapter(
+        [
+            ({"a": False, "team1_unit_0": False}, {"a": False, "team1_unit_0": False}, ["a", "team1_unit_0"]),
+            ({"a": True, "team1_unit_0": True}, {"a": False, "team1_unit_0": False}, []),
+        ],
+        Players({"team1_": None}),
+    )
+    received = []
+    step = environment._env.step
+    environment._env.step = lambda actions: (received.append(actions), step(actions))[1]
+    observations, rewards, terminations, truncations, _ = environment.step({"a": "played by RLlib"})
+    assert received == [{"a": "played by RLlib"}]
+    assert set(observations) == set(rewards) == {"a"}
+    assert terminations == {"a": False, "__all__": False} and truncations == {"a": False, "__all__": False}
+    # The observations of the step before give the checkpoint's next action.
+    _, _, terminations, _, _ = environment.step({"a": "played by RLlib"})
+    assert received[1] == {"a": "played by RLlib", "team1_unit_0": "played by the checkpoint"}
+    assert terminations == {"a": True, "__all__": True}
 
 
 def test_the_death_of_one_agent_does_not_end_the_episode():
