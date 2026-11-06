@@ -141,7 +141,7 @@ configuration.callback = VictoryCallback
 configuration.stopping_criterion = None
 
 # ── Checkpoints: the 10 latest (no score to rank them in self-play) ─────────
-# Every 5 iterations: a restart for the RAM (supervise_training.sh) loses at most 5.
+# Every 5 iterations: a restart for the RAM (start_training.sh) loses at most 5.
 configuration.checkpoint_frequency = 5
 configuration.number_checkpoint_to_keep = 10
 configuration.checkpoint_score_attribute = None

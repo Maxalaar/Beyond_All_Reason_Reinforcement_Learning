@@ -23,7 +23,7 @@ the end of version_0). The self-play victory rate says nothing of the level: eva
 at iteration 1270: 75.8 % of 817 games) with scripts/evaluate_against_controller.py. No stopping criterion: stopped by
 hand.
 
-Usage (from this repository root): experiments/combined_arms_commander_rear_spawn_self_play_ppo/supervise_training.sh
+Usage (from this repository root): experiments/combined_arms_commander_rear_spawn_self_play_ppo/start_training.sh
 (a new version from scratch; stops and resumes for the RAM; TRAINING_PATH=<version_N> resumes that version,
 INITIALIZATION_CHECKPOINT_PATH=<checkpoint> starts from those weights), or
     python ../Maxalaar_Reinforcement_Learning/scripts/reinforcement_learning_training.py \
@@ -149,7 +149,7 @@ configuration.callback = VictoryCallback
 configuration.stopping_criterion = None
 
 # ── Checkpoints: the 10 latest (no score to rank them in self-play) ─────────
-# Every 5 iterations: a restart for the RAM (supervise_training.sh) loses at most 5.
+# Every 5 iterations: a restart for the RAM (start_training.sh) loses at most 5.
 configuration.checkpoint_frequency = 5
 configuration.number_checkpoint_to_keep = 10
 configuration.checkpoint_score_attribute = None

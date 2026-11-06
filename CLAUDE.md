@@ -61,7 +61,7 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
 - Batch size: counted in env steps with complete episodes, it varied from 10280 to 20387 agent steps (36 agents, dying,
   episodes getting longer) until the learner ran out of GPU memory (8 GB). count_steps_by "agent_steps" with
   batch_mode "truncate_episodes" gives a fixed size (to a step of every agent per env runner).
-- The training scripts exit with 0 even when the Tune trial errored: supervise_training.sh looks for "Number of
+- The training scripts exit with 0 even when the Tune trial errored: start_training.sh looks for "Number of
   errored trials" in the log to resume.
 - Team outcome (decided with the user, 2026-11-05): a whole team wins (+1) or loses (-1) together, its dead units too.
   Before, a unit dead before the end got 0: in self-play at iteration 1270, 55 % of the unit steps never saw the outcome,
@@ -81,5 +81,5 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
 - combined_arms_commander_rear_spawn_self_play_ppo version_1 (decided with the user, 2026-11-06): the same scenario as
   version_0, from scratch, with the team outcome. Checked before starting, on a run deleted after: episode returns exactly
   0 in self-play, batches of 13200 to 14400 agent steps, a resume by the supervisor from its checkpoint, 7 GB for the 2
-  engines. To start: experiments/combined_arms_commander_rear_spawn_self_play_ppo/supervise_training.sh.
+  engines. To start: experiments/combined_arms_commander_rear_spawn_self_play_ppo/start_training.sh.
 
