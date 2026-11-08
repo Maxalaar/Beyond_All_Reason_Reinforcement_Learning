@@ -90,4 +90,18 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   version_0, from scratch, with the team outcome. Checked before starting, on a run deleted after: episode returns exactly
   0 in self-play, batches of 13200 to 14400 agent steps, a resume by the supervisor from its checkpoint, 7 GB for the 2
   engines. To start: experiments/combined_arms_commander_rear_spawn_self_play_ppo/start_training.sh.
-
+- Exported policies and versioned observations (decided with the user, 2026-11-08): each checkpoint can carry
+  policies/<policy>/policy.onnx + policy.json (Maxalaar_Reinforcement_Learning, export/policy_export.py; the 17
+  saved_checkpoints were exported), so a policy plays without its class: the architecture can change in place, without
+  new names. The observation is versioned instead (ObservationConfiguration.version, 1 = everything trained before;
+  frozen by a test in the environment) and chosen per team (Agent(observation=...)). Checkpoint plays from policy.onnx
+  (onnxruntime, one thread) with the observation of its policy.json; a checkpoint without exported policy is refused.
+  Every configuration exports at each checkpoint (export_policies_at_checkpoint). Checked in the engine: iteration 984
+  of version_1 won 18 of 20 games against AttackNearest from its ONNX. BeyondAllReasonModule changed in place: the
+  level 2 queries come from the observing unit's token (MLP per category, number_queries_per_category K, default 1);
+  the centralized critic keeps learned queries. Trainings started before cannot be resumed (they still play from their
+  ONNX). Not trained yet. Observation version 2 (ObservationConfiguration(version=2)): chassis + is_aircraft, is_ship,
+  is_hovercraft, is_underwater, is_amphibious; weapons + targets_air, targets_surface, targets_underwater, from the
+  game's categories as the engine's CWeapon::TestTarget uses them (checked in the engine: the anti-air bot armjeth
+  targets the air only, a Pawn air and surface). No configuration uses it yet; the scenarios have no aircraft nor
+  ships.

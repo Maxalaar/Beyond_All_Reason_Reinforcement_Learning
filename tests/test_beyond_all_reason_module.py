@@ -1,4 +1,4 @@
-"""BeyondAllReasonModule's action distribution, without the engine."""
+"""BeyondAllReasonModule: its action distribution and its queries, without the engine."""
 
 import pytest
 
@@ -7,8 +7,10 @@ pytest.importorskip("maxalaar_reinforcement_learning")
 import gymnasium as gym  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
+from ray.rllib.core.columns import Columns  # noqa: E402
 
 from beyond_all_reason_reinforcement_learning.architecture.beyond_all_reason_module import (  # noqa: E402
+    BeyondAllReasonModule,
     action_distribution_class,
 )
 
@@ -67,3 +69,67 @@ def test_the_kl_is_zero_between_equal_distributions_and_positive_otherwise():
     shifted = output.clone()
     shifted[:, 5:7] += 1.0
     assert (distribution.kl(DISTRIBUTION_CLASS.from_logits(shifted)) > 0).all()
+
+
+def small_module(**model_config):
+    from beyond_all_reason_environment.controllers import Agent, AttackNearest
+    from beyond_all_reason_environment.game import GameConfiguration
+    from beyond_all_reason_environment.reinforcement_learning_environment import ReinforcementLearningEnvironment
+    from beyond_all_reason_environment.reinforcement_learning_environment_configuration import (
+        ReinforcementLearningEnvironmentConfiguration,
+    )
+    from beyond_all_reason_environment.scenarios import combined_arms_arena
+
+    controllers = [Agent(), *[AttackNearest()] * (len(combined_arms_arena.teams) - 1)]
+    configuration = ReinforcementLearningEnvironmentConfiguration(
+        game=GameConfiguration(combined_arms_arena, controllers)
+    )
+    environment = ReinforcementLearningEnvironment(configuration)
+    torch.manual_seed(0)
+    module = BeyondAllReasonModule(
+        observation_space=environment.observation_space("team0_unit_0"),
+        action_space=environment.action_space("team0_unit_0"),
+        model_config={
+            "d_level1": 16,
+            "critic_d": 16,
+            "terrain_cnn_channels": [4],
+            "action_hidden_sizes": [16],
+            **model_config,
+        },
+    ).cpu()
+    return module, environment.observation_space("team0_unit_0")
+
+
+def batch_of(space, size: int) -> dict:
+    space.seed(0)
+    samples = [space.sample() for _ in range(size)]
+    for sample in samples:
+        sample["command_mask"][:] = 1.0
+    return {key: torch.from_numpy(np.stack([sample[key] for sample in samples])) for key in space.spaces}
+
+
+def test_the_units_ask_each_category_with_queries_made_from_their_own_token():
+    module, space = small_module(number_queries_per_category=3)
+    # No learned query left in the actor; the centralized critic, which observes from no unit, keeps its own.
+    actor_queries = [name for name, _ in module.named_parameters() if "learned_query" in name]
+    assert actor_queries and all(name.startswith("centralized_critic.") for name in actor_queries)
+
+    batch = batch_of(space, 4)
+    with torch.no_grad():
+        outputs = module.forward_inference({Columns.OBS: batch})[Columns.ACTION_DIST_INPUTS]
+        # The same entities seen by another unit: the category tokens change through the queries alone.
+        self_token = module.actor_entity_encoder(
+            batch["self_chassis"], batch["self_state"], batch["self_weapons"], batch["self_weapon_mask"]
+        )
+        queries = module.actor_category_query_enemy_units(self_token).reshape(4, 3, 16)
+    assert outputs.shape == (4, 9)
+    assert not torch.allclose(queries[0], queries[1])
+
+
+def test_the_policy_with_several_queries_per_category_exports(tmp_path):
+    pytest.importorskip("onnxruntime")
+    from maxalaar_reinforcement_learning.export.policy_export import export_policy
+
+    module, _ = small_module(number_queries_per_category=2)
+    export_policy(module, tmp_path)
+    assert (tmp_path / "policy.onnx").is_file()

@@ -157,3 +157,39 @@ def test_rllib_accepts_a_dead_agent_at_the_time_limit():
     )
     assert episode.is_done and len(episode.agent_episodes["dead"]) == 1
     assert list(episode.agent_episodes["dead"].get_rewards()) == [0.0]
+
+
+def versus(second_team) -> dict:
+    from beyond_all_reason_environment.controllers import Agent
+    from beyond_all_reason_environment.game import GameConfiguration
+    from beyond_all_reason_environment.reinforcement_learning_environment_configuration import (
+        ReinforcementLearningEnvironmentConfiguration,
+    )
+    from beyond_all_reason_environment.scenarios import one_versus_one
+
+    game = GameConfiguration(one_versus_one, [Agent(), second_team])
+    return {"configuration": ReinforcementLearningEnvironmentConfiguration(game=game)}
+
+
+def test_a_checkpoint_plays_with_the_observation_it_was_trained_on(monkeypatch):
+    from beyond_all_reason_environment.reinforcement_learning_environment_configuration import ObservationConfiguration
+
+    import beyond_all_reason_reinforcement_learning.checkpoint_controller as checkpoint_controller
+
+    loaded = []
+    monkeypatch.setattr(checkpoint_controller, "load_policy", lambda checkpoint, space: loaded.append(space))
+    opponent = checkpoint_controller.Checkpoint("old", observation=ObservationConfiguration(maximum_weapons_per_unit=1))
+
+    environment = RayMultiAgentEnvironment(versus(opponent))
+
+    assert environment.possible_agents == ["team0_unit_0"]
+    assert environment.observation_spaces["team0_unit_0"]["self_weapons"].shape[0] == 4
+    assert [space["self_weapons"].shape[0] for space in loaded] == [1]
+
+
+def test_the_teams_rllib_trains_together_need_one_observation():
+    from beyond_all_reason_environment.controllers import Agent
+    from beyond_all_reason_environment.reinforcement_learning_environment_configuration import ObservationConfiguration
+
+    with pytest.raises(ValueError, match="same observation"):
+        RayMultiAgentEnvironment(versus(Agent(observation=ObservationConfiguration(maximum_weapons_per_unit=1))))

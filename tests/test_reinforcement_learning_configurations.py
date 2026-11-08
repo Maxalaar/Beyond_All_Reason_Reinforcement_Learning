@@ -30,3 +30,5 @@ def test_configurations_load(path: Path, monkeypatch: pytest.MonkeyPatch):
         build_algorithm_configuration(configuration)[1].validate()
         # Cut by a batch, a dead unit would lose the team's outcome (MultiAgentEpisode.cut drops waiting actions).
         assert configuration.reinforcement_learning_configuration.batch_mode == "complete_episodes"
+        # Checkpoint plays a checkpoint from its exported policy.
+        assert configuration.reinforcement_learning_configuration.export_policies_at_checkpoint

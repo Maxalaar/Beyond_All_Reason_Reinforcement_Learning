@@ -77,10 +77,16 @@ class RayMultiAgentEnvironment(MultiAgentEnv):
         self.possible_agents = [
             agent for agent in self._env.possible_agents if not self._checkpoint_players.plays(agent)
         ]
-        per_agent_obs = self._env.observation_space(self._env.possible_agents[0])
-        per_agent_act = self._env.action_space(self._env.possible_agents[0])
-        self.observation_spaces = {aid: per_agent_obs for aid in self.possible_agents}
-        self.action_spaces = {aid: per_agent_act for aid in self.possible_agents}
+        # Each team of agents sees with its own observation (Agent(observation=...)); those RLlib trains share one
+        # policy, hence one observation.
+        self.observation_spaces = {agent: self._env.observation_space(agent) for agent in self.possible_agents}
+        self.action_spaces = {agent: self._env.action_space(agent) for agent in self.possible_agents}
+        spaces = list(self.observation_spaces.values())
+        if any(space != spaces[0] for space in spaces):
+            raise ValueError(
+                "the teams of agents trained together share one policy: they need the same observation, give "
+                "Agent(observation=...) only to the teams a checkpoint plays"
+            )
 
     def _for_rllib(self, values: dict) -> dict:
         """``values`` without the agents the checkpoints play."""

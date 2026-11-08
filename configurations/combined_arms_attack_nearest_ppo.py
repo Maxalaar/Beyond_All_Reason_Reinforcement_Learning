@@ -138,6 +138,8 @@ configuration.stopping_criterion = {"env_runners/victory_rate_full_window": 0.8}
 
 # ── Checkpoints ──────────────────────────────────────────────────────────────
 configuration.checkpoint_frequency = 20
+# Each checkpoint with its policy exported to ONNX, playable whatever the code becomes (Checkpoint).
+configuration.export_policies_at_checkpoint = True
 configuration.number_checkpoint_to_keep = 10
 configuration.checkpoint_score_attribute = "env_runners/victory_rate"
 configuration.checkpoint_score_order = "max"

@@ -10,19 +10,22 @@ Architecture — three levels of attention (actor):
         Linear(entity_query ∥ weapon_context)→ entity_token        (d_level1)
 
     Level 2  CategoryAggregation (one per category — self skips this level):
-        learned_query × cross-attention over entity_tokens         (d_level2)
-        → category_token  (zero when the category has no real entities)
+        K queries = MLP_category(t_self), the observing unit's own token: each unit asks the category what matters
+        to it (an anti-air unit can look for aircraft), where a learned query asked every unit the same question
+        (until 2026-11-08; those policies play from their exported ONNX)
+        K queries × cross-attention over entity_tokens             (K × d_level2)
+        → K category tokens  (zero when the category has no real entities)
 
     Level 3  GlobalAttention:
-        7 tokens projected to d_level3:
+        3 + 4·K tokens projected to d_level3:
             0  t_self          ← entity_token of the observing unit (Level 1 direct)
-            1  t_ally_units    ← CategoryAggregation output
-            2  t_enemy_units   ← CategoryAggregation output
-            3  t_ally_buildings← CategoryAggregation output
-            4  t_enemy_buildings← CategoryAggregation output
-            5  t_context       ← MLP(context features)
-            6  t_terrain       ← CNN + Linear(terrain)
-        self-attention over all 7 tokens → attended token at position 0 (t_self)
+            K  t_ally_units    ← CategoryAggregation output
+            K  t_enemy_units   ← CategoryAggregation output
+            K  t_ally_buildings← CategoryAggregation output
+            K  t_enemy_buildings← CategoryAggregation output
+            1  t_context       ← MLP(context features)
+            1  t_terrain       ← CNN + Linear(terrain)
+        self-attention over all the tokens → attended token at position 0 (t_self)
         → embedding (d_level3) → action heads
 
     Action heads:
@@ -50,6 +53,8 @@ Actor model configuration keys (all optional — defaults match a small 1v1 netw
     weapon_projector_hidden_sizes  list  hidden layers of weapon MLP           ([32])
     number_entity_attention_heads  int   attention heads at Level 1            (1)
     number_category_attention_heads int  attention heads at Level 2            (1)
+    number_queries_per_category    int   K, queries (and tokens) per category  (1)
+    category_query_hidden_sizes    list  hidden layers of the MLP t_self → queries ([d_level1])
     number_global_attention_heads  int   attention heads at Level 3            (1)
     number_global_attention_layers int   transformer layers at Level 3         (1)
     global_feedforward_size        int   feedforward dim inside Level 3 layer  (128)
@@ -131,7 +136,7 @@ _CATEGORY_KEYS: dict[str, tuple[str, str, str, str, str]] = {
     ),
 }
 
-# Insertion order fixes the stacking order of category tokens at Level 3 (positions 1–4).
+# Insertion order fixes the order of the category tokens at Level 3 (positions 1 to 4·K).
 _CATEGORY_ORDER = ("ally_units", "enemy_units", "ally_buildings", "enemy_buildings")
 
 
@@ -285,12 +290,23 @@ class BeyondAllReasonModule(TorchRLModule, ValueFunctionAPI):
         # Level 1
         self.actor_entity_encoder = EntityEncoder(**entity_encoder_kwargs)
 
-        # Level 2
+        # Level 2: per category, the queries made from the observing unit's token, and the attention they lead.
+        self._queries_per_category: int = config.get("number_queries_per_category", 1)
         for category in _CATEGORY_ORDER:
             setattr(
                 self,
                 f"actor_category_{category}",
-                CategoryAggregation(**category_aggregation_kwargs),
+                CategoryAggregation(**category_aggregation_kwargs, learned_query=False),
+            )
+            setattr(
+                self,
+                f"actor_category_query_{category}",
+                create_dense_architecture(
+                    input_dimension=d_level1,
+                    configuration_hidden_layers=config.get("category_query_hidden_sizes", [d_level1]),
+                    output_dimension=self._queries_per_category * d_level2,
+                    activation_function_class=activation_class,
+                ),
             )
 
         # Level 3 — projections into d_level3
@@ -385,19 +401,25 @@ class BeyondAllReasonModule(TorchRLModule, ValueFunctionAPI):
                 weapon_mask.reshape(B * N, weapon_mask.shape[-1]),
             ).reshape(B, N, self._d_level1)  # (B, N, d_level1)
 
+            queries = getattr(self, f"actor_category_query_{category}")(self_token).reshape(
+                B, self._queries_per_category, self._d_level2
+            )  # (B, K, d_level2)
             aggregator: CategoryAggregation = getattr(self, f"actor_category_{category}")
-            category_tokens[category] = aggregator(entity_tokens, entity_mask)  # (B, d_level2)
+            category_tokens[category] = aggregator(entity_tokens, entity_mask, queries)  # (B, K, d_level2)
 
         # ── Level 3: project to d_level3, self-attend, read self token ───────────
-        # Stack all 7 tokens; t_self is placed at position 0 so it is read after attention.
-        tokens = torch.stack(
-            [self.actor_self_projection(self_token)]
+        # t_self is placed at position 0 so it is read after attention.
+        tokens = torch.cat(
+            [self.actor_self_projection(self_token).unsqueeze(1)]
             + [self.actor_category_projection(category_tokens[cat]) for cat in _CATEGORY_ORDER]
-            + [self.actor_context_projector(to("context")), self.actor_terrain_encoder(to("terrain"))],
+            + [
+                self.actor_context_projector(to("context")).unsqueeze(1),
+                self.actor_terrain_encoder(to("terrain")).unsqueeze(1),
+            ],
             dim=1,
-        )  # (B, 7, d_level3)
+        )  # (B, 3 + 4·K, d_level3)
 
-        attended = self.actor_global_transformer(tokens)  # (B, 7, d_level3)
+        attended = self.actor_global_transformer(tokens)  # (B, 3 + 4·K, d_level3)
         return attended[:, 0]  # (B, d_level3) — attended self token
 
     # ── RLlib interface ───────────────────────────────────────────────────────────

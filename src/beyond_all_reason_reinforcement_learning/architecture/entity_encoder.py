@@ -21,6 +21,17 @@ import torch.nn as nn
 from maxalaar_reinforcement_learning.neural_network.create_dense_architecture import create_dense_architecture
 
 
+def attention_safe_mask(key_padding_mask: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """The padding mask (B, N), True = ignored, with the first slot unmasked in the rows that are all padding, and
+    those rows (B,): softmax over only −∞ would give NaN there, and the caller zeroes their result.
+
+    Without a branch on the data (torch.export, hence the ONNX export of a policy, refuses `if mask.any():`).
+    """
+    all_padding = key_padding_mask.all(dim=-1)
+    first_slot = key_padding_mask[:, :1] & ~all_padding.unsqueeze(-1)
+    return torch.cat([first_slot, key_padding_mask[:, 1:]], dim=1), all_padding
+
+
 class EntityEncoder(nn.Module):
     def __init__(
         self,
@@ -81,22 +92,13 @@ class EntityEncoder(nn.Module):
         if W == 0:
             weapon_context = torch.zeros_like(entity_query)
         else:
-            # Rows where every weapon slot is padding produce NaN in softmax(all −∞).
-            # Temporarily unmask the first slot for those rows; the result is zeroed out afterwards.
-            all_padding = key_padding_mask.all(dim=-1)  # (B,)
-            safe_mask = key_padding_mask.clone()
-            if all_padding.any():
-                safe_mask[all_padding, 0] = False
-
+            safe_mask, all_padding = attention_safe_mask(key_padding_mask)
             weapon_context_raw, _ = self.weapon_attention(
                 entity_query.unsqueeze(1),  # (B, 1, d_level1)
                 weapon_tokens,  # (B, W, d_level1)
                 weapon_tokens,
                 key_padding_mask=safe_mask,
             )
-            weapon_context = weapon_context_raw.squeeze(1)  # (B, d_level1)
-
-            if all_padding.any():
-                weapon_context = weapon_context.masked_fill(all_padding.unsqueeze(-1), 0.0)
+            weapon_context = weapon_context_raw.squeeze(1).masked_fill(all_padding.unsqueeze(-1), 0.0)  # (B, d_level1)
 
         return self.output_projector(torch.cat([entity_query, weapon_context], dim=-1))  # (B, d_level1)

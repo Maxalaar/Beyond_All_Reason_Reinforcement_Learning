@@ -131,6 +131,8 @@ five_versus_five_attack_nearest_ppo.reinforcement_learning_configuration.stoppin
 
 # ── Checkpoints ──────────────────────────────────────────────────────────────
 five_versus_five_attack_nearest_ppo.reinforcement_learning_configuration.checkpoint_frequency = 20
+# Each checkpoint with its policy exported to ONNX, playable whatever the code becomes (Checkpoint).
+five_versus_five_attack_nearest_ppo.reinforcement_learning_configuration.export_policies_at_checkpoint = True
 five_versus_five_attack_nearest_ppo.reinforcement_learning_configuration.number_checkpoint_to_keep = 10
 five_versus_five_attack_nearest_ppo.reinforcement_learning_configuration.checkpoint_score_attribute = (
     "env_runners/victory_rate"

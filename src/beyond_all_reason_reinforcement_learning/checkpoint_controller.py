@@ -1,12 +1,17 @@
-"""A team played by the policy of a checkpoint, without RLlib's Algorithm.
+"""A team played by the policy of a checkpoint, without RLlib's Algorithm and without the policy's code.
 
 For the environment, Checkpoint is an Agent: the units of its team are agents, decided from Python. CheckpointPlayers
 decides for them: RayMultiAgentEnvironment hides them from RLlib, as if they were a scripted team, and
 scripts/play_games.py plays whole games with them alone.
 
-The actions are drawn as RLlib's GetActions does, on the CPU, as the env runners do during a training.
+A checkpoint plays its exported policy (<checkpoint>/policies/<policy>/policy.onnx, written by
+Maxalaar_Reinforcement_Learning's export/policy_export.py, during the training or by its scripts/export_policies.py),
+with the observation its policy.json says it was trained on: the policy plays whatever the architecture and the
+observation of the environment became since. The actions are drawn as RLlib's GetActions does, on the CPU.
 """
 
+import dataclasses
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,57 +19,119 @@ import beyond_all_reason_environment.controllers as controllers
 import numpy as np
 import torch
 from beyond_all_reason_environment.controllers import Agent, Controller
-from ray.rllib.core.columns import Columns
-from ray.rllib.core.rl_module.rl_module import RLModule
+from beyond_all_reason_environment.reinforcement_learning_environment_configuration import ObservationConfiguration
+from ray.rllib.utils.serialization import gym_space_from_dict
 
-# Where a checkpoint keeps the weights of the shared policy, and what marks a folder as a checkpoint.
-POLICY = Path("learner_group") / "learner" / "rl_module" / "shared_policy"
+from beyond_all_reason_reinforcement_learning.architecture.beyond_all_reason_module import action_distribution_class
+
+# What marks a folder as a checkpoint, and where it keeps its exported policies (policy_export.py).
 CHECKPOINT_FILE = "rllib_checkpoint.json"
+POLICIES = "policies"
+DESCRIPTION_FILE = "policy.json"
+
+
+def policy_directory(checkpoint_path: Path) -> Path:
+    """The folder of the exported policy of a checkpoint: its only one."""
+    directories = sorted(path.parent for path in (checkpoint_path / POLICIES).glob(f"*/{DESCRIPTION_FILE}"))
+    if len(directories) != 1:
+        raise ValueError(
+            f"{checkpoint_path}: {len(directories)} exported policies, one expected; export it with "
+            "python ../Maxalaar_Reinforcement_Learning/scripts/export_policies.py <checkpoint>"
+        )
+    return directories[0]
+
+
+def trained_observation(description: dict) -> ObservationConfiguration:
+    """The observation a policy was trained on, from its policy.json. A configuration without a version was trained
+    on version 1: the versions began on 2026-11-08, after them."""
+    fields = dict(description["environment_configuration"]["configuration"]["observation"])
+    fields.pop("class", None)
+    known = {field.name for field in dataclasses.fields(ObservationConfiguration)}
+    if set(fields) - known:
+        raise ValueError(f"an observation this code does not know: {sorted(set(fields) - known)}")
+    fields["terrain_resolution"] = tuple(fields["terrain_resolution"])
+    return ObservationConfiguration(**fields)
 
 
 @dataclass(frozen=True)
 class Checkpoint(Agent):
     """The policy of the checkpoint at ``path`` plays the team: the most likely action if ``deterministic``, a draw
+    otherwise. Its agents see with the observation it was trained on (its policy.json), unless ``observation`` says
     otherwise."""
 
     path: str
     deterministic: bool = False
 
     def __post_init__(self) -> None:
-        # RLModule.from_checkpoint needs an absolute path, and Ray's workers may not share the working directory.
+        # Absolute: Ray's workers may not share the working directory.
         object.__setattr__(self, "path", str(Path(self.path).resolve()))
+        if self.observation is None:
+            description = json.loads((policy_directory(Path(self.path)) / DESCRIPTION_FILE).read_text())
+            object.__setattr__(self, "observation", trained_observation(description))
 
     @property
     def label(self) -> str:
         return Path(self.path).name
 
 
-def load_policy(checkpoint: Checkpoint, observation_space) -> torch.nn.Module:
-    """The policy of ``checkpoint``, on the CPU, which must have been trained on this observation."""
-    module = RLModule.from_checkpoint(str(Path(checkpoint.path) / POLICY)).to("cpu").eval()
+class ExportedPolicy:
+    """An exported policy (policy.onnx and policy.json): the action distribution inputs of a batch of observations."""
+
+    def __init__(self, directory: Path):
+        import onnxruntime
+
+        description = json.loads((directory / DESCRIPTION_FILE).read_text())
+        self.inputs = description["inputs"]
+        self.output = description["output"]["name"]
+        self.observation_space = gym_space_from_dict(description["observation_space"])
+        self.action_space = gym_space_from_dict(description["action_space"])
+        options = onnxruntime.SessionOptions()
+        # One thread: the env runners and the processes of play_games.py already share the cores.
+        options.intra_op_num_threads = options.inter_op_num_threads = 1
+        self._session = onnxruntime.InferenceSession(
+            str(directory / description["onnx_file"]), options, providers=["CPUExecutionProvider"]
+        )
+
+    def distribution_inputs(self, batch: dict[str, np.ndarray]) -> np.ndarray:
+        feed = {}
+        for entry in self.inputs:
+            value = batch
+            for key in entry["observation_path"]:
+                value = value[key]
+            feed[entry["name"]] = np.asarray(value, dtype=entry["dtype"])
+        return self._session.run([self.output], feed)[0]
+
+
+def load_policy(checkpoint: Checkpoint, observation_space) -> ExportedPolicy:
+    """The exported policy of ``checkpoint``, which must have been trained on this observation."""
+    policy = ExportedPolicy(policy_directory(Path(checkpoint.path)))
     trained, played = (
         {key: space.shape for key, space in spaces.spaces.items()}
-        for spaces in (module.observation_space, observation_space)
+        for spaces in (policy.observation_space, observation_space)
     )
     if trained != played:
         differences = sorted(key for key in trained.keys() | played.keys() if trained.get(key) != played.get(key))
         raise ValueError(f"{checkpoint.path} was trained on another observation; differences: {differences}")
-    return module
+    return policy
 
 
 class CheckpointPlayers:
-    """The actions of the teams played by checkpoints; ``policies``: (policy, deterministic) by agent name prefix."""
+    """The actions of the teams played by checkpoints; ``policies``: (policy, deterministic) by agent name prefix, a
+    policy giving the action distribution inputs of a batch (ExportedPolicy)."""
 
     def __init__(self, policies: dict[str, tuple]):
         self._policies = policies
 
     @classmethod
     def of(cls, environment) -> "CheckpointPlayers":
-        """The players of the Checkpoint teams of a ReinforcementLearningEnvironment."""
-        observation_space = environment.observation_space(environment.possible_agents[0])
+        """The players of the Checkpoint teams of a ReinforcementLearningEnvironment, each on the observation of its
+        team."""
         return cls(
             {
-                f"team{team}_": (load_policy(controller, observation_space), controller.deterministic)
+                f"team{team}_": (
+                    load_policy(controller, environment.observation_space(f"team{team}_unit_0")),
+                    controller.deterministic,
+                )
                 for team, controller in enumerate(environment.configuration.game.controllers)
                 if isinstance(controller, Checkpoint)
             }
@@ -80,13 +147,10 @@ class CheckpointPlayers:
             agents = [agent for agent in observations if agent.startswith(prefix)]
             if not agents:
                 continue
-            batch = {
-                key: torch.from_numpy(np.stack([observations[agent][key] for agent in agents]))
-                for key in observations[agents[0]]
-            }
+            batch = {key: np.stack([observations[agent][key] for agent in agents]) for key in observations[agents[0]]}
+            inputs = torch.from_numpy(policy.distribution_inputs(batch))
             with torch.no_grad():
-                inputs = policy.forward_inference({Columns.OBS: batch})[Columns.ACTION_DIST_INPUTS]
-                distribution = policy.get_inference_action_dist_cls().from_logits(inputs)
+                distribution = action_distribution_class(policy.action_space).from_logits(inputs)
                 drawn = (distribution.to_deterministic() if deterministic else distribution).sample()
             for index, agent in enumerate(agents):
                 actions[agent] = {"command": int(drawn["command"][index]), "target": drawn["target"][index].numpy()}
