@@ -18,6 +18,12 @@ experiments/combined_arms_commander_self_play_ppo/saved_checkpoints/version_0_it
 unit dead before the end of the game got no outcome.
 version_1 starts from scratch (decided with the user, 2026-11-06), with the team outcome: a whole team wins (+1) or
 loses (-1) together, its dead units too, on complete episodes.
+version_2 (decided with the user, 2026-11-08): the same game as version_1 (scenario, rewards, PPO), from scratch, with
+two changes: the observation version 2 (what a unit is: aircraft, ship, hovercraft, submarine, amphibious; what a weapon
+can hit: air, surface, under water; constant here, but there for the scenarios to come) and the level 2 queries made
+from the observing unit's token (BeyondAllReasonModule since 2026-11-08). Compared with version_1 against
+AttackNearest: iteration 984 of version_1 won 82 of 109 games, 18 of 20 from its ONNX. version_0 and version_1 play
+from their exported policies (policies/ in their saved_checkpoints), with the observation version 1.
 What to watch: the draw rate and the episode length (armies further apart, longer episodes), the entropy (about -1.9 at
 the end of version_0). The self-play victory rate says nothing of the level: evaluate against AttackNearest (version_0
 at iteration 1270: 75.8 % of 817 games) with scripts/play_games.py. No stopping criterion: stopped by
@@ -52,7 +58,8 @@ combined_arms_commander_rear_spawn_self_play_ppo = ExperimentationConfiguration(
     environment_configuration={
         "configuration": ReinforcementLearningEnvironmentConfiguration(
             game=GameConfiguration(scenario=combined_arms_commander_arena_rear_spawn, controllers=[Agent(), Agent()]),
-            observation=ObservationConfiguration(maximum_weapons_per_unit=1),
+            # Version 2 since version_2 of this training; version_0 and version_1 saw the version 1.
+            observation=ObservationConfiguration(maximum_weapons_per_unit=1, version=2),
             action=ActionConfiguration(),
             rewards=RewardWeights(damage_dealt=0.0, damage_received=0.0, kill=0.0, victory=1.0, defeat=-1.0),
         )
@@ -73,6 +80,9 @@ configuration.architecture_configuration = {
     "weapon_projector_hidden_sizes": [32],
     "number_entity_attention_heads": 1,
     "number_category_attention_heads": 1,
+    # The queries of each category, made from the observing unit's token (since version_2 of this training).
+    "number_queries_per_category": 1,
+    "category_query_hidden_sizes": [64],
     "number_global_attention_heads": 1,
     "number_global_attention_layers": 1,
     "global_feedforward_size": 128,
