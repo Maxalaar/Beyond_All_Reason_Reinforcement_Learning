@@ -24,6 +24,15 @@ can hit: air, surface, under water; constant here, but there for the scenarios t
 from the observing unit's token (BeyondAllReasonModule since 2026-11-08). Compared with version_1 against
 AttackNearest: iteration 984 of version_1 won 82 of 109 games, 18 of 20 from its ONNX. version_0 and version_1 play
 from their exported policies (policies/ in their saved_checkpoints), with the observation version 1.
+version_2 broke (2026-11-08): at iteration 614 its critic died in one iteration (explained variance 0.75 -> 0, the same
+value ~0 for both teams since, though its observation tells who wins), with no message nor NaN; the actor drifted
+after it (target squashed to the map edge, "stop" 77 % of the time: no unit moves, draws). Its 10 kept checkpoints were
+all after the death. version_3 (decided with the user, 2026-11-08): version_2 again, unchanged, with every checkpoint
+kept, to look at the weights before and after if the critic dies again.
+version_3 (5034 iterations, stopped 2026-11-10): its critic stayed at 0.75-0.95, but at checkpoint_001005 it lost to
+version_1 at iteration 3507 (40.5 % victories, 53 % defeats in 200 games) and version_0 at iteration 1270 (35 %, 53 %),
+though it beat AttackNearest as often as they did (74.5 % of 200 games), with an entropy of -5.7 against -1.8 for both.
+Trained after on the whole half (combined_arms_commander_self_play_ppo version_1), it did not change.
 What to watch: the draw rate and the episode length (armies further apart, longer episodes), the entropy (about -1.9 at
 the end of version_0). The self-play victory rate says nothing of the level: evaluate against AttackNearest (version_0
 at iteration 1270: 75.8 % of 817 games) with scripts/play_games.py. No stopping criterion: stopped by
@@ -158,12 +167,12 @@ configuration.evaluation_interval = None
 configuration.callback = VictoryCallback
 configuration.stopping_criterion = None
 
-# ── Checkpoints: the 10 latest (no score to rank them in self-play) ─────────
+# ── Checkpoints: all of them since version_3 (11 MB each; version_2 kept the 10 latest) ─────────
 # Every 5 iterations: a restart for the RAM (start_training.sh) loses at most 5.
 configuration.checkpoint_frequency = 5
 # Each checkpoint with its policy exported to ONNX, playable whatever the code becomes (Checkpoint).
 configuration.export_policies_at_checkpoint = True
-configuration.number_checkpoint_to_keep = 10
+configuration.number_checkpoint_to_keep = None
 configuration.checkpoint_score_attribute = None
 # display_episodes.py shows the latest checkpoint (it needs a metric to choose one).
 combined_arms_commander_rear_spawn_self_play_ppo.display_episodes_configuration.checkpoint_score_attribute = (

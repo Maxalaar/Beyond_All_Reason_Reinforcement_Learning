@@ -103,5 +103,10 @@ Created on 2026-10-22 from code that was in Maxalaar_Reinforcement_Learning and 
   ONNX). Not trained yet. Observation version 2 (ObservationConfiguration(version=2)): chassis + is_aircraft, is_ship,
   is_hovercraft, is_underwater, is_amphibious; weapons + targets_air, targets_surface, targets_underwater, from the
   game's categories as the engine's CWeapon::TestTarget uses them (checked in the engine: the anti-air bot armjeth
-  targets the air only, a Pawn air and surface). No configuration uses it yet; the scenarios have no aircraft nor
-  ships.
+  targets the air only, a Pawn air and surface). The scenarios have no aircraft nor ships.
+- Rear-spawn self-play version_2 and version_3 (observation version 2, queries from the unit's token; 2026-11-08 to
+  2026-11-10): the critic of version_2 died at iteration 614 (explained variance 0.75 -> 0, no NaN), version_3 (the
+  same, rerun) stayed healthy for 5034 iterations but lost to version_1 (40.5 %) and version_0 (35 %) head to head,
+  while beating AttackNearest as they do (74.5 %), at an entropy of -5.7 against -1.8. 1565 more iterations spawned on
+  the whole half (combined_arms_commander_self_play_ppo version_1, from its weights) changed nothing. Suspect left: the
+  queries from the unit's token; the test proposed is a rear-spawn training from scratch with the learned queries.
